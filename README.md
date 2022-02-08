@@ -4,7 +4,7 @@ This library contains the Python function library for running entropy pooling of
 
 Rough structure sketch of the code library
 
-1) main file that is used to run the entropy pooling procedure
+1) main file that is used to run the entropy pooling procedure (this will call the functions)
 
 2) function(s) for uploading and preprocessing the data from xlsx file into views
 
