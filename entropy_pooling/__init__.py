@@ -1,1 +1,1 @@
-import entropy_pooling.views
+import entropy_pooling.views, entropy_pooling.entropy_minimizer
