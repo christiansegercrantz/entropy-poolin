@@ -60,8 +60,8 @@ def confidence_weighted_posterior(p_prior, p_post, c):
     # Error handling: check that all components of c are within [0, 1]?
 
     if type(c) in [int, float]:
-        p_c = (1 - c)*p_prior + c*p_post # TODO: hande cases of scalar and vector c.
+        p_c = (1 - c)*p_prior + c*p_post
     else:
-        # TODO: implement
+        p_c = np.outer(p_prior, 1 - c) + np.outer(p_post, c)
     
     return p_c
