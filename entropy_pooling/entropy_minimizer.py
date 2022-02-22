@@ -25,21 +25,21 @@ def full_confidence_posterior(p, A, a_lb, a_ub):
     # their coefficients by -1.
     F = A[not is_equal]
     F = np.concatenate((F, -1*F))
-    f = np.concatenate((a_ub[is_equal], -1*a_lb[is_equal]))
+    f = np.concatenate((a_ub[not is_equal], -1*a_lb[not is_equal]))
     dim_f = len(f)
     dim_x = len(p)
 
     # Nested function for computing the dual function values (only one input x to be scipy optimizer -compatible)
-    def dual(x):
-        l, v = x[:dim_h], x[dim_h:] # separate equality and inequality dual variables
+    def dual(var):
+        l, v = var[:dim_h], var[dim_h:] # separate equality and inequality dual variables
         x = p * np.exp(-1 - np.dot(np.transpose(F), l) - np.dot(np.transpose(H), v)) # primal solution (with l, v fixed)
         L = np.dot(x, np.log(x) - np.log(p)) + np.dot(l, np.dot(F, x) - f) + np.dot(v, np.dot(H, x) - h) # Dual value
         return L
 
     # Nested function for computing the Jacobian of the dual function (needed by scipy optimizer)
     def Jac(var):
-        l, v = var[:dim_h], var[dim_h:] # separate equality and inequality dual variables
-        # TODO: compute partial derivatives
+        l, v = var[:dim_f], var[dim_f:] # separate equality and inequality dual variables
+
         # Interim results: (ln x - ln p), dxdl and dxdv
         x = p * np.exp(-1 - np.dot(np.transpose(F), l) - np.dot(np.transpose(H), v))
         lnx_lnp = - np.ones(dim_x) - np.dot(np.transpose(F), l) - np.dot(np.transpose(H), v)
@@ -55,11 +55,10 @@ def full_confidence_posterior(p, A, a_lb, a_ub):
         Jac = np.concatenate((Jacl, Jacv))
         return Jac
 
-    # TODO: add constraints: all lambdas nonnegative, nus unrestricted
-    res = opt.minimize(lambda x : -1 * dual(x), x0 = p, method = 'Newton-CG', jac = ???) # TODO: Define the Jecobian
+    bounds = np.concatenate((np.repeat((0, None), dim_f), np.repeat((None, None), dim_f)))
+    res = opt.minimize(fun = lambda x : -1 * dual(x), x0 = p, method = 'CG', jac = Jac, bounds = bounds)
     l_opt, v_opt = res.x[:dim_h], res.x[dim_h:]
 
-    # Step 3: compute optimal primal variable values = posterior distribution
     posterior = p * np.exp(- 1 - np.dot(F, l_opt) - np.dot(H, v_opt))
     return posterior
 
