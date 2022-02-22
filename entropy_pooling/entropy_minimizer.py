@@ -16,17 +16,18 @@ def full_confidence_posterior(p, A, a_lb, a_ub):
     # a_ub: upper bound vector (1 x K) for constraints
 
     # Separate equality and inequality constraints to different arrays
-    is_equal = a_lb == u_lb
-    H = A[is_equal]
-    h = a_ub[is_equal]
-    dim_h = len(h)
-
     # We want F to include only Fx <= f type of constraints. This is why we multiply all >= ones and
     # their coefficients by -1.
-    F = A[not is_equal]
+    is_equal = a_lb == u_lb
+
+    F = A[not is_equal, :]
     F = np.concatenate((F, -1*F))
     f = np.concatenate((a_ub[not is_equal], -1*a_lb[not is_equal]))
     dim_f = len(f)
+
+    H = A[is_equal, :]
+    h = a_ub[is_equal]
+    dim_h = len(h)
     dim_x = len(p)
 
     # Nested function for computing the dual function values (only one input x to be scipy optimizer -compatible)
@@ -57,7 +58,7 @@ def full_confidence_posterior(p, A, a_lb, a_ub):
 
     bounds = np.concatenate((np.repeat((0, None), dim_f), np.repeat((None, None), dim_f)))
     res = opt.minimize(fun = lambda x : -1 * dual(x), x0 = p, method = 'CG', jac = Jac, bounds = bounds)
-    l_opt, v_opt = res.x[:dim_h], res.x[dim_h:]
+    l_opt, v_opt = res.x[:dim_f], res.x[dim_f:]
 
     posterior = p * np.exp(- 1 - np.dot(F, l_opt) - np.dot(H, v_opt))
     return posterior
