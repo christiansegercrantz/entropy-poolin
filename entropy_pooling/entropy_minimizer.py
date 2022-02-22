@@ -17,7 +17,7 @@ def full_confidence_posterior(p, A, a_lb, a_ub):
 
     # Separate equality and inequality constraints to different arrays
     # We want F to include only Fx <= f type of constraints. This is why we multiply all >= ones and
-    # their coefficients by -1.
+    # their coefficients by -1. Then, the multipliers lambda are nonnegative
     is_equal = a_lb == u_lb
 
     F = A[not is_equal, :]
@@ -60,7 +60,7 @@ def full_confidence_posterior(p, A, a_lb, a_ub):
     res = opt.minimize(fun = lambda x : -1 * dual(x), x0 = p, method = 'CG', jac = Jac, bounds = bounds)
     l_opt, v_opt = res.x[:dim_f], res.x[dim_f:]
 
-    posterior = p * np.exp(- 1 - np.dot(F, l_opt) - np.dot(H, v_opt))
+    posterior = p * np.exp(-1 - np.dot(np.transpose(F), l_opt) - np.dot(np.transpose(H), v_opt))
     return posterior
 
 def confidence_weighted_posterior(p_prior, p_post, c):
