@@ -18,11 +18,11 @@ def full_confidence_posterior(p, A, a_lb, a_ub):
     # Separate equality and inequality constraints to different arrays
     # We want F to include only Fx <= f type of constraints. This is why we multiply all >= ones and
     # their coefficients by -1. Then, the multipliers lambda are nonnegative
-    is_equal = a_lb == u_lb
+    is_equal = a_lb == a_ub
 
-    F = A[not is_equal, :]
+    F = A[~ is_equal, :]
     F = np.concatenate((F, -1*F))
-    f = np.concatenate((a_ub[not is_equal], -1*a_lb[not is_equal]))
+    f = np.concatenate((a_ub[~ is_equal], -1*a_lb[~ is_equal]))
     dim_f = len(f)
 
     H = A[is_equal, :]
@@ -32,7 +32,7 @@ def full_confidence_posterior(p, A, a_lb, a_ub):
 
     # Nested function for computing the dual function values (only one input x to be scipy optimizer -compatible)
     def dual(var):
-        l, v = var[:dim_h], var[dim_h:] # separate equality and inequality dual variables
+        l, v = var[:dim_f], var[dim_f:] # separate equality and inequality dual variables
         x = p * np.exp(-1 - np.dot(np.transpose(F), l) - np.dot(np.transpose(H), v)) # primal solution (with l, v fixed)
         L = np.dot(x, np.log(x) - np.log(p)) + np.dot(l, np.dot(F, x) - f) + np.dot(v, np.dot(H, x) - h) # Dual value
         return L
@@ -43,21 +43,24 @@ def full_confidence_posterior(p, A, a_lb, a_ub):
 
         # Interim results: (ln x - ln p), dxdl and dxdv
         x = p * np.exp(-1 - np.dot(np.transpose(F), l) - np.dot(np.transpose(H), v))
+        print(x)
         lnx_lnp = - np.ones(dim_x) - np.dot(np.transpose(F), l) - np.dot(np.transpose(H), v)
-        dxdl = -p * np.exp(-1) * np.exp(-1 * np.dot(np.transpose(H), v)) * np.exp(-1 * np.transpose(F), l) * np.transpose(F)
-        dxdv = -p * np.exp(-1) * np.exp(-1 * np.dot(np.transpose(F), l)) * np.exp(-1 * np.transpose(H), v) * np.transpose(H)
+        dxdl = -p * np.exp(-1) * np.exp(-1 * np.dot(np.transpose(H), v)) * np.exp(-1 * np.dot(np.transpose(F), l)) * F # TODO: transpose(F)?
+        dxdv = -p * np.exp(-1) * np.exp(-1 * np.dot(np.transpose(F), l)) * np.exp(-1 * np.dot(np.transpose(H), v)) * H # TODO: transpose(H)?
 
         # Jacobian vectors wrt to lambda and nu separately
-        Jacl = -1 * np.dot(x, np.transpose(F)) + np.dot(lnx_lnp, dxdx) + np.transpose(np.dot(F, x)) -
-            np.transpose(f) + (np.dot(l, F) + np.dot(np.dot(v, H)), dxdl)
-        Jacv = -1 * np.dot(x, np.transpose(H)) + np.dot(lnx_lnp, dxdv) + np.transpose(np.dot(H, x)) -
-            np.transpose(h) + (np.dot(v, H) + np.dot(np.dot(l, F)), dxdv)
+        # Jacl = -1 * np.dot(x, np.transpose(F)) + np.dot(lnx_lnp, dxdl) + np.transpose(np.dot(F, x)) - \
+        #     np.transpose(f) + (np.dot(l, F) + np.dot(np.dot(v, H)), dxdl)
+        # Jacv = -1 * np.dot(x, np.transpose(H)) + np.dot(lnx_lnp, dxdv) + np.transpose(np.dot(H, x)) - \
+        #     np.transpose(h) + (np.dot(v, H) + np.dot(np.dot(l, F)), dxdv)
+        Jacl = -1 * np.dot(F, x) + np.dot(dxdl, lnx_lnp) + np.dot(F, x) - f + np.dot(dxdl, np.dot(l, F) + np.dot(v, H))
+        Jacv = -1 * np.dot(H, x) + np.dot(dxdv, lnx_lnp) + np.dot(H, x) - h + np.dot(dxdv, np.dot(v, H) + np.dot(l, F))
 
         Jac = np.concatenate((Jacl, Jacv))
         return Jac
 
     bounds = np.concatenate((np.repeat((0, None), dim_f), np.repeat((None, None), dim_f)))
-    res = opt.minimize(fun = lambda x : -1 * dual(x), x0 = p, method = 'CG', jac = Jac, bounds = bounds)
+    res = opt.minimize(fun = lambda x : -1 * dual(x), x0 = p, method = 'CG', jac = Jac) #, bounds = bounds)
     l_opt, v_opt = res.x[:dim_f], res.x[dim_f:]
 
     posterior = p * np.exp(-1 - np.dot(np.transpose(F), l_opt) - np.dot(np.transpose(H), v_opt))
