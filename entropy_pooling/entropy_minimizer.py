@@ -43,7 +43,6 @@ def full_confidence_posterior(p, A, a_lb, a_ub):
 
         # Interim results: (ln x - ln p), dxdl and dxdv
         x = p * np.exp(-1 - np.dot(np.transpose(F), l) - np.dot(np.transpose(H), v))
-        print(x)
         lnx_lnp = - np.ones(dim_x) - np.dot(np.transpose(F), l) - np.dot(np.transpose(H), v)
         dxdl = -p * np.exp(-1) * np.exp(-1 * np.dot(np.transpose(H), v)) * np.exp(-1 * np.dot(np.transpose(F), l)) * F # TODO: transpose(F)?
         dxdv = -p * np.exp(-1) * np.exp(-1 * np.dot(np.transpose(F), l)) * np.exp(-1 * np.dot(np.transpose(H), v)) * H # TODO: transpose(H)?
@@ -59,8 +58,8 @@ def full_confidence_posterior(p, A, a_lb, a_ub):
         Jac = np.concatenate((Jacl, Jacv))
         return Jac
 
-    bounds = np.concatenate((np.repeat((0, None), dim_f), np.repeat((None, None), dim_f)))
-    res = opt.minimize(fun = lambda x : -1 * dual(x), x0 = p, method = 'CG', jac = Jac) #, bounds = bounds)
+    bounds = (((0, None), ) * dim_f) + (((None, None), ) * dim_h) # ineq Lagr multipliers nonneg, eq multipliers unrestricted
+    res = opt.minimize(fun = lambda x : -1 * dual(x), x0 = np.zeros(dim_f + dim_h), method = 'TNC', jac = Jac, bounds = bounds)
     l_opt, v_opt = res.x[:dim_f], res.x[dim_f:]
 
     posterior = p * np.exp(-1 - np.dot(np.transpose(F), l_opt) - np.dot(np.transpose(H), v_opt))
