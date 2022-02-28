@@ -3,8 +3,8 @@ import pandas as pd
 import numpy as np
 import math
 from cvxopt import matrix, solvers # pip install cvxopt
-from mosek import iparam
-solvers.options['MOSEK'] = {iparam.log: 0}
+#from mosek import iparam
+
 
 
 # TODO:
@@ -39,8 +39,8 @@ def load(data = pd.read_excel("data.xlsx")):
     df = pd.read_excel("views.xlsx")
 
     # Initialize output matrices and vectors
-    A = np.zeros((0,len(data)))
-    b = np.zeros((0,1))
+    A = np.ones((1,len(data))) # ones because sum(x_i) = 1
+    b = np.ones((1,1)) # one because sum(x_i) = 1
     C = np.zeros((0,len(data)))
     d = np.zeros((0,1))
 
