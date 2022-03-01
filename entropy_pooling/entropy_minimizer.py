@@ -16,8 +16,18 @@ def full_confidence_posterior(p, A, b, C, d):
     # C: the (K x S) matrix used to express the constraints Cx <= d
     # d: lower bound vector (1 x K) for inequality constraints
 
-    dim_d = len(d)
+    # Check that the dimensions of the input arguments match
+    if not len(p) == A.shape[1]:
+        raise Exception('A and p dimensions mismatch')
+    if not len(p) == C.shape[1]:
+        raise Exception('C and p dimensions mismatch')
+    if not A.shape[1] == len(b):
+        raise Exception('A and b dimensions mismatch')
+    if not C.shape[1] == len(d):
+        raise Exception('C and d dimensions mismatch')
+
     dim_b = len(b)
+    dim_d = len(d)
     dim_x = len(p)
 
     # Nested function for computing the dual function values (only one input x to be scipy optimizer -compatible)
@@ -62,10 +72,14 @@ def confidence_weighted_posterior(p_prior, p_post, c):
     # c: a scalar or (L x 1) vector giving the confidence weight(s).
 
     # Error handling: check that all components of c are within [0, 1]?
+    if not len(p_prior) == len(p_posterior):
+        raise Exception('Lengths of prior and posterior vectors do not match')
 
     if type(c) in [int, float]:
-        p_c = (1 - c)*p_prior + c*p_post
+        p_weighted = (1 - c)*p_prior + c*p_post
+    elif type(c) == np.ndarray:
+        p_weighted = np.outer(p_prior, 1 - c) + np.outer(p_post, c)
     else:
-        p_c = np.outer(p_prior, 1 - c) + np.outer(p_post, c)
+        raise Exception('c has wrong type')
 
-    return p_c
+    return p_weighted
