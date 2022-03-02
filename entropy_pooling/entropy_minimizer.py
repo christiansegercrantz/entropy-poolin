@@ -76,8 +76,12 @@ def confidence_weighted_posterior(p_prior, p_post, c):
         raise Exception('Lengths of prior and posterior vectors do not match')
 
     if type(c) in [int, float]:
+        if c < 0 or c > 1:
+            raise Exception('Value of c must be between 0 and 1')
         p_weighted = (1 - c)*p_prior + c*p_post
     elif type(c) == np.ndarray:
+        if np.any(c < 0) or np.any(c > 1):
+            raise Exception('All values of c must be between 0 and 1')
         p_weighted = np.outer(p_prior, 1 - c) + np.outer(p_post, c)
     else:
         raise Exception('c has wrong type')
