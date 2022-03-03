@@ -21,9 +21,9 @@ def full_confidence_posterior(p, A, b, C, d):
         raise Exception('A and p dimensions mismatch')
     if not len(p) == C.shape[1]:
         raise Exception('C and p dimensions mismatch')
-    if not A.shape[1] == len(b):
+    if not A.shape[0] == len(b):
         raise Exception('A and b dimensions mismatch')
-    if not C.shape[1] == len(d):
+    if not C.shape[0] == len(d):
         raise Exception('C and d dimensions mismatch')
 
     dim_b = len(b)
@@ -72,7 +72,7 @@ def confidence_weighted_posterior(p_prior, p_post, c):
     # c: a scalar or (L x 1) vector giving the confidence weight(s).
 
     # Error handling: check that all components of c are within [0, 1]?
-    if not len(p_prior) == len(p_posterior):
+    if not len(p_prior) == len(p_post):
         raise Exception('Lengths of prior and posterior vectors do not match')
 
     if type(c) in [int, float]:
