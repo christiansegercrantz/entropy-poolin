@@ -5,64 +5,61 @@ import scipy.optimize as opt
 # TODO: define the type of input arguments: lists/arrays or numpy arrays or DataFrames???
 # current code is made for numpy arrays, let's see if the syntax works for pd DFs
 
-def full_confidence_posterior(p, A, a_lb, a_ub):
+def full_confidence_posterior(p, A, b, C, d):
     # Computes the full-condifence posterior distribution by finding the constrained
     # entropy-minimizing set of variables
     #
     # Input arguments:
-    # p: a (J x 1) vector of prior probabilities
-    # A: the (K x J) matrix used to express the constraints
-    # a_lb: lower bound vector (1 x K) for constraints
-    # a_ub: upper bound vector (1 x K) for constraints
+    # p: a (S x 1) vector of prior probabilities
+    # A: the (J x S) matrix used to express the constraints Ax = b
+    # b: upper bound vector (1 x J) for constraints
+    # C: the (K x S) matrix used to express the constraints Cx <= d
+    # d: lower bound vector (1 x K) for inequality constraints
 
-    # Separate equality and inequality constraints to different arrays
-    # We want F to include only Fx <= f type of constraints. This is why we multiply all >= ones and
-    # their coefficients by -1. Then, the multipliers lambda are nonnegative
-    is_equal = a_lb == a_ub
+    # Check that the dimensions of the input arguments match
+    if not len(p) == A.shape[1]:
+        raise Exception('A and p dimensions mismatch')
+    if not len(p) == C.shape[1]:
+        raise Exception('C and p dimensions mismatch')
+    if not A.shape[0] == len(b):
+        raise Exception('A and b dimensions mismatch')
+    if not C.shape[0] == len(d):
+        raise Exception('C and d dimensions mismatch')
 
-    F = A[~ is_equal, :]
-    F = np.concatenate((F, -1*F))
-    f = np.concatenate((a_ub[~ is_equal], -1*a_lb[~ is_equal]))
-    dim_f = len(f)
-
-    H = A[is_equal, :]
-    h = a_ub[is_equal]
-    dim_h = len(h)
+    dim_b = len(b)
+    dim_d = len(d)
     dim_x = len(p)
 
     # Nested function for computing the dual function values (only one input x to be scipy optimizer -compatible)
     def dual(var):
-        l, v = var[:dim_f], var[dim_f:] # separate equality and inequality dual variables
-        x = p * np.exp(-1 - np.dot(np.transpose(F), l) - np.dot(np.transpose(H), v)) # primal solution (with l, v fixed)
-        L = np.dot(x, np.log(x) - np.log(p)) + np.dot(l, np.dot(F, x) - f) + np.dot(v, np.dot(H, x) - h) # Dual value
-        return L
+        l, v = var[:dim_d], var[dim_d:] # separate equality and inequality dual variables
+        x = p * np.exp(-1 - np.dot(np.transpose(C), l) - np.dot(np.transpose(A), v)) # primal solution (with l, v fixed)
+        L = np.dot(x, np.log(x) - np.log(p)) + np.dot(l, np.dot(C, x) - d) + np.dot(v, np.dot(A, x) - b) # Dual value
+        return -1 * L # we maximize dual but scipt.opt only mnimizes, thus minus sign
 
     # Nested function for computing the Jacobian of the dual function (needed by scipy optimizer)
     def Jac(var):
-        l, v = var[:dim_f], var[dim_f:] # separate equality and inequality dual variables
+        l, v = var[:dim_d], var[dim_d:] # separate equality and inequality dual variables
 
-        # Interim results: (ln x - ln p), dxdl and dxdv
-        x = p * np.exp(-1 - np.dot(np.transpose(F), l) - np.dot(np.transpose(H), v))
-        lnx_lnp = - np.ones(dim_x) - np.dot(np.transpose(F), l) - np.dot(np.transpose(H), v)
-        dxdl = -p * np.exp(-1) * np.exp(-1 * np.dot(np.transpose(H), v)) * np.exp(-1 * np.dot(np.transpose(F), l)) * F # TODO: transpose(F)?
-        dxdv = -p * np.exp(-1) * np.exp(-1 * np.dot(np.transpose(F), l)) * np.exp(-1 * np.dot(np.transpose(H), v)) * H # TODO: transpose(H)?
+        # Interim results: (ln x - ln p), dx/dl and dx/dv
+        x = p * np.exp(-1 - np.dot(np.transpose(C), l) - np.dot(np.transpose(A), v))
+        lnx_lnp = - np.ones(dim_x) - np.dot(np.transpose(C), l) - np.dot(np.transpose(A), v)
+        dxdl = -p * np.exp(-1) * np.exp(-1 * np.dot(np.transpose(A), v)) * np.exp(-1 * np.dot(np.transpose(C), l)) * C # TODO: transpose(C)?
+        dxdv = -p * np.exp(-1) * np.exp(-1 * np.dot(np.transpose(C), l)) * np.exp(-1 * np.dot(np.transpose(A), v)) * A # TODO: transpose(A)?
 
-        # Jacobian vectors wrt to lambda and nu separately
-        # Jacl = -1 * np.dot(x, np.transpose(F)) + np.dot(lnx_lnp, dxdl) + np.transpose(np.dot(F, x)) - \
-        #     np.transpose(f) + (np.dot(l, F) + np.dot(np.dot(v, H)), dxdl)
-        # Jacv = -1 * np.dot(x, np.transpose(H)) + np.dot(lnx_lnp, dxdv) + np.transpose(np.dot(H, x)) - \
-        #     np.transpose(h) + (np.dot(v, H) + np.dot(np.dot(l, F)), dxdv)
-        Jacl = -1 * np.dot(F, x) + np.dot(dxdl, lnx_lnp) + np.dot(F, x) - f + np.dot(dxdl, np.dot(l, F) + np.dot(v, H))
-        Jacv = -1 * np.dot(H, x) + np.dot(dxdv, lnx_lnp) + np.dot(H, x) - h + np.dot(dxdv, np.dot(v, H) + np.dot(l, F))
+        Jacl = -1 * np.dot(C, x) + np.dot(dxdl, lnx_lnp) + np.dot(C, x) - d + np.dot(dxdl, np.dot(l, C) + np.dot(v, A))
+        Jacv = -1 * np.dot(A, x) + np.dot(dxdv, lnx_lnp) + np.dot(A, x) - b + np.dot(dxdv, np.dot(v, A) + np.dot(l, C))
 
         Jac = np.concatenate((Jacl, Jacv))
-        return Jac
+        return -1 * Jac # we minimize the negative of dual --> we need minus sign in gradient
 
-    bounds = (((0, None), ) * dim_f) + (((None, None), ) * dim_h) # ineq Lagr multipliers nonneg, eq multipliers unrestricted
-    res = opt.minimize(fun = lambda x : -1 * dual(x), x0 = np.zeros(dim_f + dim_h), method = 'TNC', jac = Jac, bounds = bounds)
-    l_opt, v_opt = res.x[:dim_f], res.x[dim_f:]
+    bounds = (((0, None), ) * dim_d) + (((None, None), ) * dim_b) # ineq Lagr multipliers nonneg, eq multipliers unrestricted
+    res = opt.minimize(fun = lambda x : dual(x), x0 = np.ones(dim_d + dim_b), method = 'TNC', jac = Jac, bounds = bounds)
+    print(res.x)
+    print(Jac(res.x))
+    l_opt, v_opt = res.x[:dim_d], res.x[dim_d:]
 
-    posterior = p * np.exp(-1 - np.dot(np.transpose(F), l_opt) - np.dot(np.transpose(H), v_opt))
+    posterior = p * np.exp(-1 - np.dot(np.transpose(C), l_opt) - np.dot(np.transpose(A), v_opt))
     return posterior
 
 def confidence_weighted_posterior(p_prior, p_post, c):
@@ -75,10 +72,18 @@ def confidence_weighted_posterior(p_prior, p_post, c):
     # c: a scalar or (L x 1) vector giving the confidence weight(s).
 
     # Error handling: check that all components of c are within [0, 1]?
+    if not len(p_prior) == len(p_post):
+        raise Exception('Lengths of prior and posterior vectors do not match')
 
     if type(c) in [int, float]:
-        p_c = (1 - c)*p_prior + c*p_post
+        if c < 0 or c > 1:
+            raise Exception('Value of c must be between 0 and 1')
+        p_weighted = (1 - c)*p_prior + c*p_post
+    elif type(c) == np.ndarray:
+        if np.any(c < 0) or np.any(c > 1):
+            raise Exception('All values of c must be between 0 and 1')
+        p_weighted = np.outer(p_prior, 1 - c) + np.outer(p_post, c)
     else:
-        p_c = np.outer(p_prior, 1 - c) + np.outer(p_post, c)
+        raise Exception('c has wrong type')
 
-    return p_c
+    return p_weighted
