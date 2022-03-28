@@ -7,30 +7,35 @@ import scipy.optimize as opt
 
 def full_confidence_posterior(p, A, b, C, d):
     # Computes the full-condifence posterior distribution by finding the constrained
-    # entropy-minimizing set of variables
+    # entropy-minimizing set of variables ('posterior distribution')
     #
     # Input arguments:
-    # p: a (S x 1) vector of prior probabilities
-    # A: the (J x S) matrix used to express the constraints Ax = b
-    # b: upper bound vector (1 x J) for constraints
-    # C: the (K x S) matrix used to express the constraints Cx <= d
-    # d: lower bound vector (1 x K) for inequality constraints
+    # p: the S-element vector of prior probabilities, expected type numpy.ndarray
+    # A: the (J x S) matrix used to express the constraints Ax = b, expected type numpy.ndarray
+    # b: the J-element upper bound vector (1 x J) for equality constraints, expected type numpy.ndarray
+    # C: the (K x S) matrix used to express the constraints Cx <= d, expected type numpy.ndarray
+    # d: the K-element lower bound vector for inequality constraints, expected type numpy.ndarray
+
+    # Change p, b, d shapes to simple np.ndarray if it is more complex
+    if p.ndim > 1:
+        p = p.reshape(p.shape[0],)
+    if b.ndim > 1:
+        b = b.reshape(b.shape[0],)
+    if d.ndim > 1:
+        d = d.reshape(d.shape[0],)
 
     # Check that the dimensions of the input arguments match
-    if not len(p) == A.shape[1]:
-        raise Exception('A and p dimensions mismatch')
-    if not len(p) == C.shape[1]:
-        raise Exception('C and p dimensions mismatch')
-    if not A.shape[0] == len(b):
-        raise Exception('A and b dimensions mismatch')
-    if not C.shape[0] == len(d):
-        raise Exception('C and d dimensions mismatch')
+    assert len(p) == A.shape[1], 'A and p dimensions mismatch'
+    assert len(p) == C.shape[1], 'C and p dimensions mismatch'
+    assert A.shape[0] == len(b), 'A and b dimensions mismatch'
+    assert C.shape[0] == len(d), 'C and d dimensions mismatch'
 
     dim_b = len(b)
     dim_d = len(d)
     dim_x = len(p)
 
     # Nested function for computing the dual function values (only one input x to be scipy optimizer -compatible)
+    # TODO: start using .T and @ notation
     def dual(var):
         l, v = var[:dim_d], var[dim_d:] # separate equality and inequality dual variables
         x = p * np.exp(-1 - np.dot(np.transpose(C), l) - np.dot(np.transpose(A), v)) # primal solution (with l, v fixed)
@@ -67,21 +72,24 @@ def confidence_weighted_posterior(p_prior, p_post, c):
     # in fact, computing a c-weighted average of the prior and posterior distributions
     #
     # Input arguments:
-    # p_prior: the (J x 1) vector of prior probabilities
-    # p_post: the (J x 1) vector of posterior probabilities, output from full_confidence_posterior
-    # c: a scalar or (L x 1) vector giving the confidence weight(s).
+    # p_prior: the J-element vector of prior probabilities, expected type numpy.ndarray
+    # p_post: the J-element vector of posterior probabilities, output from full_confidence_posterior, expected type numpy.ndarray
+    # c: a scalar (int or float) or L-element vector (then expected type numpy.ndarray) giving the confidence weight(s).
+
+    # TODO: change error handling to assert()
+    if p_prior.ndim > 1:
+        p_prior = p_prior.reshape(len(p_prior),)
+    if p_post.ndim  > 1:
+        p_post  = p_post.reshape(len(p_post),)
+
+    assert len(p_prior) == len(p_post), 'Lengths of prior and posterior vectors do not match'
 
     # Error handling: check that all components of c are within [0, 1]?
-    if not len(p_prior) == len(p_post):
-        raise Exception('Lengths of prior and posterior vectors do not match')
-
     if type(c) in [int, float]:
-        if c < 0 or c > 1:
-            raise Exception('Value of c must be between 0 and 1')
+        assert c => 0 and c <= 1, 'Value of c must be between 0 and 1'
         p_weighted = (1 - c)*p_prior + c*p_post
     elif type(c) == np.ndarray:
-        if np.any(c < 0) or np.any(c > 1):
-            raise Exception('All values of c must be between 0 and 1')
+        assert np.all(c >= 0) and np.all(c <= 1), 'All values of c must be between 0 and 1'
         p_weighted = np.outer(p_prior, 1 - c) + np.outer(p_post, c)
     else:
         raise Exception('c has wrong type')
