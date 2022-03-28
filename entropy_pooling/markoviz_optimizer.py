@@ -23,6 +23,10 @@ def optimizer(scenarios, probabilities, mu_0, disp = True, visualize = False):
             A OptimizeResult object from scipy, where x is the optimal weight of each item.
     """
     
+    #In case the probabilities vector  is of shape (n,) instead of (n,1)
+    if probabilities.ndim == 1:
+        probabilities = probabilities.reshape(len(probabilities),1)
+    
     mu, covar = mean_and_var(scenarios, probabilities)
   
     m, n = covar.shape
