@@ -38,8 +38,10 @@ def full_confidence_posterior(p, A, b, C, d):
     # TODO: start using .T and @ notation
     def dual(var):
         l, v = var[:dim_d], var[dim_d:] # separate equality and inequality dual variables
-        x = p * np.exp(-1 - np.dot(np.transpose(C), l) - np.dot(np.transpose(A), v)) # primal solution (with l, v fixed)
-        L = np.dot(x, np.log(x) - np.log(p)) + np.dot(l, np.dot(C, x) - d) + np.dot(v, np.dot(A, x) - b) # Dual value
+        # x = p * np.exp(-1 - np.dot(np.transpose(C), l) - np.dot(np.transpose(A), v)) # primal solution (with l, v fixed)
+        x = p * np.exp(-1 - C.T @ l - A.T @ v) # primal solution (with l, v fixed)
+        # L = np.dot(x, np.log(x) - np.log(p)) + np.dot(l, np.dot(C, x) - d) + np.dot(v, np.dot(A, x) - b) # Dual value
+        L = x @ (np.log(x) - np.log(p)) + l @ (C @ x - d) + v @ (A @ x - b) # Dual value
         return -1 * L # we maximize dual but scipt.opt only mnimizes, thus minus sign
 
     # Nested function for computing the Jacobian of the dual function (needed by scipy optimizer)
@@ -47,24 +49,32 @@ def full_confidence_posterior(p, A, b, C, d):
         l, v = var[:dim_d], var[dim_d:] # separate equality and inequality dual variables
 
         # Interim results: (ln x - ln p), dx/dl and dx/dv
-        x = p * np.exp(-1 - np.dot(np.transpose(C), l) - np.dot(np.transpose(A), v))
-        lnx_lnp = - np.ones(dim_x) - np.dot(np.transpose(C), l) - np.dot(np.transpose(A), v)
-        dxdl = -p * np.exp(-1) * np.exp(-1 * np.dot(np.transpose(A), v)) * np.exp(-1 * np.dot(np.transpose(C), l)) * C # TODO: transpose(C)?
-        dxdv = -p * np.exp(-1) * np.exp(-1 * np.dot(np.transpose(C), l)) * np.exp(-1 * np.dot(np.transpose(A), v)) * A # TODO: transpose(A)?
+        # x = p * np.exp(-1 - np.dot(np.transpose(C), l) - np.dot(np.transpose(A), v))
+        x = p * np.exp(-1 - C.T @ l - A.T @ v)
+        # lnx_lnp = - np.ones(dim_x) - np.dot(np.transpose(C), l) - np.dot(np.transpose(A), v)
+        lnx_lnp = - np.ones(dim_x) - C.T @ l - A.T @ v
+        # dxdl = -p * np.exp(-1) * np.exp(-1 * np.dot(np.transpose(A), v)) * np.exp(-1 * np.dot(np.transpose(C), l)) * C # TODO: transpose(C)?
+        dxdl = -p * np.exp(-1) * np.exp(-1 * A.T @ v) * np.exp(-1 * C.T @ l) * C
+        # dxdv = -p * np.exp(-1) * np.exp(-1 * np.dot(np.transpose(C), l)) * np.exp(-1 * np.dot(np.transpose(A), v)) * A # TODO: transpose(A)?
+        dxdv = -p * np.exp(-1) * np.exp(-1 * A.T @ v) * np.exp(-1 * C.T @ l) * A
 
-        Jacl = -1 * np.dot(C, x) + np.dot(dxdl, lnx_lnp) + np.dot(C, x) - d + np.dot(dxdl, np.dot(l, C) + np.dot(v, A))
-        Jacv = -1 * np.dot(A, x) + np.dot(dxdv, lnx_lnp) + np.dot(A, x) - b + np.dot(dxdv, np.dot(v, A) + np.dot(l, C))
+        # Jacl = -1 * np.dot(C, x) + np.dot(dxdl, lnx_lnp) + np.dot(C, x) - d + np.dot(dxdl, np.dot(l, C) + np.dot(v, A))
+        Jacl = -1 * (C @ x) + dxdl @ lnx_lnp + C @ x - d + dxdl @ (l @ C + v @ A)
+        # Jacv = -1 * np.dot(A, x) + np.dot(dxdv, lnx_lnp) + np.dot(A, x) - b + np.dot(dxdv, np.dot(v, A) + np.dot(l, C))
+        Jacv = -1 * (A @ x) + dxdv @ lnx_lnp + A @ x - b + dxdv @ (v @ A + l @ C)
 
         Jac = np.concatenate((Jacl, Jacv))
         return -1 * Jac # we minimize the negative of dual --> we need minus sign in gradient
 
     bounds = (((0, None), ) * dim_d) + (((None, None), ) * dim_b) # ineq Lagr multipliers nonneg, eq multipliers unrestricted
     res = opt.minimize(fun = lambda x : dual(x), x0 = np.ones(dim_d + dim_b), method = 'TNC', jac = Jac, bounds = bounds)
-    print(res.x)
-    print(Jac(res.x))
+    print("Results")
+    print("Optimal dual variable values: ", res.x)
+    print("Jacobian matrix at optimum", Jac(res.x))
     l_opt, v_opt = res.x[:dim_d], res.x[dim_d:]
 
-    posterior = p * np.exp(-1 - np.dot(np.transpose(C), l_opt) - np.dot(np.transpose(A), v_opt))
+    # posterior = p * np.exp(-1 - np.dot(np.transpose(C), l_opt) - np.dot(np.transpose(A), v_opt))
+    posterior = p * np.exp(-1 - C.T @ l_opt - A.T @ v_opt)
     return posterior
 
 def confidence_weighted_posterior(p_prior, p_post, c):
@@ -86,7 +96,7 @@ def confidence_weighted_posterior(p_prior, p_post, c):
 
     # Error handling: check that all components of c are within [0, 1]?
     if type(c) in [int, float]:
-        assert c => 0 and c <= 1, 'Value of c must be between 0 and 1'
+        assert c >= 0 and c <= 1, 'Value of c must be between 0 and 1'
         p_weighted = (1 - c)*p_prior + c*p_post
     elif type(c) == np.ndarray:
         assert np.all(c >= 0) and np.all(c <= 1), 'All values of c must be between 0 and 1'
