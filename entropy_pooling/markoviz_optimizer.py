@@ -3,7 +3,7 @@ import pandas as pd
 from scipy.optimize import minimize, LinearConstraint, Bounds
 import matplotlib.pyplot as plt
 
-def optimizer(scenarios, probabilities, mu_0, disp = True, vizualization = False):
+def optimizer(scenarios, probabilities, mu_0, disp = True, visualize = False):
     """Optimizes the weights put on each item the portfolio. This is done by minimizing the volatility of the portfolio at a given return procentage. Also visualized the markoviz model if requested.
     --------------------
     ### Input arguments:
@@ -15,7 +15,7 @@ def optimizer(scenarios, probabilities, mu_0, disp = True, vizualization = False
             The return to optimize for, given in decimal as 50% = 0.5
         disp: Default 'True'
             the (K x S) matrix used to express the constraints Cx <= d
-        vizualization: Default 'False'
+        visualize: Default 'False'
             Plots the efficient prontier, the optimal protoflio, the original portfolio items and a cloud of randomly weighted items.
     --------------------        
     ### Returns: 
@@ -46,8 +46,8 @@ def optimizer(scenarios, probabilities, mu_0, disp = True, vizualization = False
                    constraints = constraints,
                    tol=0.00001,
                    options = {"disp": disp})
-    if vizualization:
-        vizualization(covar, mu, optimal = res.x, frontier=True, scenarios = scenarios, weights = probabilities)
+    if visualize:
+        vizualization(covar, mu, optimal = res.x, frontier=True, scenarios = scenarios, probabilities = probabilities)
     return res
 
 
@@ -110,8 +110,8 @@ def vizualization(covar, mu, generated_points = 50000, frontier = True, optimal 
         port_vol.append(y.T @ covar @ y)
 
     if frontier:
-        assert(scenarios is None), "You have to give in scenarios in order to plot the frontier"
-        assert(probabilities is None), "You have to give in weights in order to to plot the frontier"
+        assert(scenarios is not None), "You have to give in scenarios in order to plot the frontier"
+        assert(probabilities is not None), "You have to give in weights in order to to plot the frontier"
         frontier_mu = np.array([])
         frontier_var = np.array([])
         for j in np.linspace(0, np.max(mu), 100):
