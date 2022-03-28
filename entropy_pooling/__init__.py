@@ -1,1 +1,1 @@
-import entropy_pooling.views, entropy_pooling.entropy_minimizer
+import entropy_pooling.views, entropy_pooling.entropy_minimizer, entropy_pooling.markoviz_optimizer
