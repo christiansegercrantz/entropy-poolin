@@ -27,13 +27,13 @@ cols = {'type'      : '* View on',
 }
 
 # load() IS THE MAIN FUNCTION
-# It returns a tuple (A,b,C,d), which contain the constraints Ax = b and Cx >= d.
+# It returns a tuple (A,b,C,d), which contain the constraints Ax = b and Cx <= d.
 
 def load(data = pd.read_excel("data.xlsx")):
 
     df = pd.read_excel("views.xlsx")
     df = set_col_names(df) # adds columns with new names
-
+    data = data/100 # data is in precentages
     # Initialize output matrices and vectors
     A = np.ones((1,len(data))) # ones because sum(x_i) = 1
     b = np.ones((1,1))         #  one because sum(x_i) = 1
@@ -63,7 +63,7 @@ def load(data = pd.read_excel("data.xlsx")):
     # Again, for linear correlation constraints, we need to fix the volatilities.
     # As with the mean values, we solve a feasible (near-)optimal solution
     posterior_var = solve_feasible_posterior(data, df, 'var')
-
+    print(posterior_mean[['Global Equities','DM Equities']])
     # COVARIANCE CONSTRAINTS
 
     # Add the constraints to output matrices and vectors...
@@ -85,7 +85,7 @@ def set_col_names(data):
         'asset4'    : 'Risk factor 4 \n(applicable for corr)' # pitää lisätä vielä beta!
     }
     for key, value in cols.items():
-        df = df.rename(columns={value:key}) # TODO: just rename them...
+        df = df.rename(columns={value:key})
     return df
 
 def cov_vector(data, posterior_mean, name1, name2):
@@ -97,42 +97,57 @@ def returns_to_monthly(r):
     return (r+1)**(1/12)-1
 
 def append_mean(A, b, C, d, data, df, ind, rf):
-    sign = 1 - 2*('leq' in rf)
+    sign = 1 - 2*('geq' in rf)
     row = data.iloc[:][df.iloc[ind]['asset1']]
+    element = returns_to_monthly(sign*df.iloc[ind]['parameter'])
     if 'rel' in rf:
         row = row - data.iloc[:][df.iloc[ind]['asset3']]
-    element = returns_to_monthly(sign*df.iloc[ind]['parameter'])
+        #element = element / 12
+    
     # Append new row and element with vstack
     if ('leq' in rf) or ('geq' in rf):
         return (A,b,np.vstack([C, sign*row]), np.vstack([d, element]))
     else:
         return (np.vstack([A, sign*row]), np.vstack([b, element]),C,d)
 
-def append_corr(A,b,C, d, data, posterior_mean, posterior_var, df, ind, rf):
-    sign = 1 - 2*('leq' in rf)
-    row = cov_vector(data, posterior_mean, df.iloc[ind]['asset1'], df.iloc[ind]['asset2']) / np.sqrt(posterior_var[df.iloc[ind]['asset1']].values * posterior_var[df.iloc[ind]['asset2']].values)
+def append_corr(A, b, C, d, data, posterior_mean, posterior_var, df, ind, rf):
+    sign = 1 - 2*('geq' in rf)
+    var1 = posterior_var[df.iloc[ind]['asset1']].values
+    var2 = posterior_var[df.iloc[ind]['asset2']].values
+    print('Assetit', df.iloc[ind]['asset1'], df.iloc[ind]['asset2'])
+    row = cov_vector(data, posterior_mean, df.iloc[ind]['asset1'], df.iloc[ind]['asset2']) / np.sqrt(var1 * var2)
     if 'rel' in rf:
-        row = row - cov_vector(data, posterior_mean, df.iloc[ind]['asset3'], df.iloc[ind]['asset4']) / np.sqrt(posterior_var[df.iloc[ind]['asset3']].values * posterior_var[df.iloc[ind]['asset4']].values)
+        var3 = posterior_var[df.iloc[ind]['asset3']].values
+        var4 = posterior_var[df.iloc[ind]['asset4']].values
+        row = row - cov_vector(data, posterior_mean, df.iloc[ind]['asset3'], df.iloc[ind]['asset4']) / np.sqrt(var3 * var4)
     if ('leq' in rf) or ('geq' in rf):
-        return (A,b,np.vstack([C, sign*row]), np.vstack([d, sign*df.iloc[ind]['parameter']]))
+        C_new = np.vstack([C, sign*row])
+        d_new = np.vstack([d, sign*df.iloc[ind]['parameter']])
+        return (A, b, C_new, d_new)
     else:
-        return (np.vstack([A, sign*row]), np.vstack([b, sign*df.iloc[ind]['parameter']]), C,d)
+        A_new = np.vstack([A, sign*row])
+        b_new = np.vstack([b, sign*df.iloc[ind]['parameter']])
+        return (A_new, b_new, C, d)
 
 def append_var(A, b, C, d, data, posterior_mean, df, ind, rf):
-    sign = 1 - 2*('leq' in rf)
+    sign = 1 - 2*('geq' in rf)
     row = cov_vector(data, posterior_mean, df.iloc[ind]['asset1'], df.iloc[ind]['asset1'])
     if 'rel' in rf:
         row = row - cov_vector(data, posterior_mean, df.iloc[ind]['asset3'], df.iloc[ind]['asset3'])
     if ('leq' in rf) or ('geq' in rf):
-        return (A,b,np.vstack([C, sign*row]), np.vstack([d, sign*df.iloc[ind]['parameter']**2 / 12])) # 1/12 to annualize volatility
+        C_new = np.vstack([C, sign*row])
+        d_new = np.vstack([d, sign*df.iloc[ind]['parameter']**2 / 12]) # 1/12 to annualize volatility
+        return (A, b, C_new, d_new)
     else:
-        return (np.vstack([A, sign*row]), np.vstack([b, sign*df.iloc[ind]['parameter']**2 / 12]),C,d) # 1/12 to annualize volatility
+        A_new = np.vstack([A, sign*row])
+        b_new = np.vstack([b, sign*df.iloc[ind]['parameter']**2 / 12]) # 1/12 to annualize volatility
+        return (A_new, b_new, C, d) # 1/12 to annualize volatility
 
 # Function that reads the format of the row (e.g. non-relative mean equality)
 def row_format(ind, df = pd.read_excel("views.xlsx")):
     # If Excel cell 'asset3' is left empty, we are dealing with absolute view
     # Otherwise relative view
-    if isinstance(df.iloc[ind]['asset3'], float) and math.isnan(df.iloc[ind]['asset3']):
+    if (isinstance(df.iloc[ind]['asset3'], float) and math.isnan(df.iloc[ind]['asset3'])) or df.iloc[ind]['asset3']=="-":
         res = ""
     else:
         res = "rel_"
