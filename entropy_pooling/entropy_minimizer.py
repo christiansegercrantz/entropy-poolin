@@ -2,9 +2,6 @@
 import numpy as np
 import scipy.optimize as opt
 
-# TODO: define the type of input arguments: lists/arrays or numpy arrays or DataFrames???
-# current code is made for numpy arrays, let's see if the syntax works for pd DFs
-
 def full_confidence_posterior(p, A, b, C, d):
     # Computes the full-condifence posterior distribution by finding the constrained
     # entropy-minimizing set of variables ('posterior distribution')
@@ -16,7 +13,7 @@ def full_confidence_posterior(p, A, b, C, d):
     # C: the (K x S) matrix used to express the constraints Cx <= d, expected type numpy.ndarray
     # d: the K-element lower bound vector for inequality constraints, expected type numpy.ndarray
 
-    # Change p, b, d shapes to simple np.ndarray if it is more complex
+    # Change p, b, d shapes to simple np.ndarray if they are more complex
     if p.ndim > 1:
         p = p.reshape(p.shape[0],)
     if b.ndim > 1:
@@ -35,7 +32,6 @@ def full_confidence_posterior(p, A, b, C, d):
     dim_x = len(p)
 
     # Nested function for computing the dual function values (only one input x to be scipy optimizer -compatible)
-    # TODO: start using .T and @ notation
     def dual(var):
         l, v = var[:dim_d], var[dim_d:] # separate equality and inequality dual variables
         # x = p * np.exp(-1 - np.dot(np.transpose(C), l) - np.dot(np.transpose(A), v)) # primal solution (with l, v fixed)
@@ -67,7 +63,7 @@ def full_confidence_posterior(p, A, b, C, d):
         return -1 * Jac # we minimize the negative of dual --> we need minus sign in gradient
 
     bounds = (((0, None), ) * dim_d) + (((None, None), ) * dim_b) # ineq Lagr multipliers nonneg, eq multipliers unrestricted
-    res = opt.minimize(fun = lambda x : dual(x), x0 = np.ones(dim_d + dim_b), method = 'TNC', jac = Jac, bounds = bounds)
+    res = opt.minimize(fun = dual, x0 = np.ones(dim_d + dim_b), method = 'TNC', jac = Jac, bounds = bounds)
     print("Results")
     print("Optimal dual variable values: ", res.x)
     print("Jacobian matrix at optimum", Jac(res.x))

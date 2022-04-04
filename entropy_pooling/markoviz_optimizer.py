@@ -4,6 +4,48 @@ import pandas as pd
 from scipy.optimize import minimize, LinearConstraint, Bounds
 import matplotlib.pyplot as plt
 
+def load_asset_deltas(filename, sheet_name = None):
+    """Uploads the data containing the asset delta matrix from the given Excel file.
+    --------------------
+    ### Input arguments:
+        filename: String
+            The name of the excel file that contains the (N x F) matrix of the factor sensitivites
+            of the optimizable assets. (N = number of assets, F = number of factors)
+            The data should contain a header (with factor names) and the first row
+            contains the indexes (asset names)
+        sheet_name (optional): if the delta matrix is given inside a bigger Excel workbok, then extract the right sheet
+    --------------------
+    ### Returns:
+        deltas: The (N x F) asset sensitivity ('delta') matrix (in numpy format, without row or column names)
+        asset_names: List of the names of the assets included in the deltas matrix as indexers
+    """
+
+    deltas = pd.read_excel(filename, header = 0, index_col = 0)
+    asset_names = list(deltas.index)
+    # Convert delta matrix to a simple numpy array
+    deltas = deltas.to_numpy
+
+    return deltas, asset_names
+
+def asset_scenarios(factor_scenarios, asset_deltas):
+    """Computes the scenario-wise returns for each portfolio asset using the factor scenarios matrix and asset delta matrix.
+    --------------------
+    ### Input arguments:
+        factor_scenarios: Matrix
+        A (S x F) matrix of factor return scenarios
+        asset_deltas: Matrix
+        A (N x F) matrix of asset sensitivities ('deltas') to changes in factors
+    --------------------
+    ### Returns:
+        asset_scenarios:
+        A (S x N) matrix containing the asset return scenarios
+    """
+
+    # Check that the F dimension matches
+    assert factor_scenarios.shape[1] == asset_deltas.shape[1] "The number of factors (x dimension) is not the same for the input matrices."
+    asset_scenarios = factor_scenarios @ asset_deltas.T
+    return asset_scenarios
+
 def optimizer(scenarios, probabilities, mu_0, disp = True, visualize = False):
     """Optimizes the weights put on each item the portfolio. This is done by minimizing the volatility of the portfolio at a given return procentage. Also visualized the markoviz model if requested.
     --------------------
@@ -18,32 +60,32 @@ def optimizer(scenarios, probabilities, mu_0, disp = True, visualize = False):
             the (K x S) matrix used to express the constraints Cx <= d
         visualize: Default 'False'
             Plots the efficient prontier, the optimal protoflio, the original portfolio items and a cloud of randomly weighted items.
-    --------------------        
-    ### Returns: 
-        res: 
+    --------------------
+    ### Returns:
+        res:
             A OptimizeResult object from scipy, where x is the optimal weight of each item.
     """
-    
+
     #In case the probabilities vector  is of shape (n,) instead of (n,1)
     if probabilities.ndim == 1:
         probabilities = probabilities.reshape(len(probabilities),1)
-    
+
     mu, covar = mean_and_var(scenarios, probabilities)
-  
+
     m, n = covar.shape
     x0 = np.ones(m)/m
-    
+
     def jac(x):
         return 2 * covar @ x
-    
+
     def objective_function(x):
         return  x.T @ covar @ x
-    
+
     bounds = Bounds(lb = np.zeros(m), ub = np.ones(m)) #[(0, 1) for i in range(m)]
     constraints = (LinearConstraint(np.ones(m), lb=1, ub=1), #Sum of weights 1
                   LinearConstraint(mu, lb=mu_0, ub=np.inf) #Greater or equal to a certain return level
-                  ) 
-    
+                  )
+
     res = minimize(objective_function,
                    jac=jac,
                    x0 = x0,
@@ -64,14 +106,14 @@ def mean_and_var(scenarios, probabilities):
             A (S x ) matrix of the optimizable portfolio items
         probabilities: Array of floats <= 1
             A (S x 1) vector of prior probabilities
-    --------------------    
-    ### Returns: 
+    --------------------
+    ### Returns:
         mu: (N x 1) vector
             The mean of each portfolio item
-        
+
         covar: (N x N) matrix
             The covariance of the portfolio items"""
-    
+
     m,n = scenarios.shape
     probabilities_reshaped = np.asarray(probabilities).reshape(m,)
     mu = np.average(scenarios, axis=0, weights = probabilities_reshaped)
@@ -123,7 +165,7 @@ def vizualization(covar, mu, generated_points = 50000, frontier = True, optimal 
             opt = optimizer(scenarios, probabilities, mu_0 = j, disp = False)
             frontier_mu = np.append(frontier_mu, mu @ opt.x)
             frontier_var = np.append( frontier_var, opt.x.T @ covar @ opt.x)
-            
+
     # fig, ax = plt.subplots()
     # ax.scatter(port_vol, port_returns)
     # ax.scatter(np.diag(covar), mu, color = "yellow");
@@ -134,7 +176,7 @@ def vizualization(covar, mu, generated_points = 50000, frontier = True, optimal 
     # if frontier:
     #     ax.plot(frontier_var, frontier_mu, color='red');
     # plt.show();
-    
+
     from plotnine import ggplot, geom_point, aes, geom_line, labs, geom_text, position_jitter, theme, element_text, theme_linedraw, element_line, element_rect
 
     generated_df = pd.DataFrame(list(zip(port_vol,
@@ -144,7 +186,7 @@ def vizualization(covar, mu, generated_points = 50000, frontier = True, optimal 
     frontier_df = pd.DataFrame(list(zip(frontier_var,
                                     frontier_mu)),
                         columns = ["Volatility",
-                                   "Returns"]) 
+                                   "Returns"])
     #df = pd.DataFrame(list(zip(frontier_var,frontier_mu)),
     #                    columns = ["Volatility", "Returns"])
     (ggplot()
@@ -162,13 +204,13 @@ def vizualization(covar, mu, generated_points = 50000, frontier = True, optimal 
         + geom_point(mapping = aes(x = optimal.T @ covar @ optimal, y=mu @ optimal),
                      color = "#242331",
                      #shape=13
-                     ) 
+                     )
         + geom_text(mapping = aes(x = optimal.T @ covar @ optimal, y=mu @ optimal),
                      label = "Optimal",
                      nudge_y = -0.05,
                      nudge_x = 5,
                      size = 7,
-                     ) 
+                     )
         + geom_point(aes(x = np.diag(covar), y = mu),
                      color = "#A27035"
                      )
@@ -190,5 +232,5 @@ def vizualization(covar, mu, generated_points = 50000, frontier = True, optimal 
                 panel_grid_minor = element_line(size = 0.25,
                                                 linetype = 'solid',
                                                 colour = "black"),
-                panel_background = element_rect(fill = "white"))        
+                panel_background = element_rect(fill = "white"))
     ).draw()
