@@ -1,3 +1,4 @@
+from turtle import color
 import numpy as np
 import pandas as pd
 from scipy.optimize import minimize, LinearConstraint, Bounds
@@ -105,13 +106,13 @@ def vizualization(covar, mu, generated_points = 50000, frontier = True, optimal 
         assert(mu_0 is not None), "You have to give in the return lower bound mu_0 to find the optimal using the method"
         optimal = optimizer(scenarios, probabilities, mu_0 = mu_0, disp = False, vizualization = False)
     m,n = covar.shape
-    port_returns = []
-    port_vol = []
+    port_returns = np.array([])
+    port_vol = np.array([])
     for i in range(0, generated_points):
         y = np.random.rand(m,1)**10
         y = y/np.sum(y)
-        port_returns.append(mu @ y)
-        port_vol.append(y.T @ covar @ y)
+        port_returns = np.append(port_returns, mu @ y)
+        port_vol = np.append(port_vol, y.T @ covar @ y)
 
     if frontier:
         assert(scenarios is not None), "You have to give in scenarios in order to plot the frontier"
@@ -123,13 +124,71 @@ def vizualization(covar, mu, generated_points = 50000, frontier = True, optimal 
             frontier_mu = np.append(frontier_mu, mu @ opt.x)
             frontier_var = np.append( frontier_var, opt.x.T @ covar @ opt.x)
             
-    fig, ax = plt.subplots()
-    ax.scatter(port_vol, port_returns)
-    ax.scatter(np.diag(covar), mu, color = "yellow");
-    for i, txt in enumerate(scenarios.columns):
-        ax.annotate(txt, (np.diag(covar)[i], mu[i]))
-    ax.scatter(optimal.T @ covar @ optimal,mu @ optimal, color='red');
-    ax.annotate("Optimal", (optimal.T @ covar @ optimal,mu @ optimal));
-    if frontier:
-        ax.plot(frontier_var, frontier_mu, color='red');
-    plt.show();
+    # fig, ax = plt.subplots()
+    # ax.scatter(port_vol, port_returns)
+    # ax.scatter(np.diag(covar), mu, color = "yellow");
+    # for i, txt in enumerate(scenarios.columns):
+    #     ax.annotate(txt, (np.diag(covar)[i], mu[i]))
+    # ax.scatter(optimal.T @ covar @ optimal,mu @ optimal, color='red');
+    # ax.annotate("Optimal", (optimal.T @ covar @ optimal,mu @ optimal));
+    # if frontier:
+    #     ax.plot(frontier_var, frontier_mu, color='red');
+    # plt.show();
+    
+    from plotnine import ggplot, geom_point, aes, geom_line, labs, geom_text, position_jitter, theme, element_text, theme_linedraw, element_line, element_rect
+
+    generated_df = pd.DataFrame(list(zip(port_vol,
+                                    port_returns)),
+                        columns = ["Volatility",
+                                   "Returns"])
+    frontier_df = pd.DataFrame(list(zip(frontier_var,
+                                    frontier_mu)),
+                        columns = ["Volatility",
+                                   "Returns"]) 
+    #df = pd.DataFrame(list(zip(frontier_var,frontier_mu)),
+    #                    columns = ["Volatility", "Returns"])
+    (ggplot()
+        + labs(title="Optimal solution", y="Returns", x="Volatility")
+        + geom_point(data = generated_df,
+                     mapping = aes(x = "Volatility",
+                        y = "Returns"),
+                     color = "#7D8CC4"
+                    )
+        + geom_line(data = frontier_df,
+                    mapping= aes(x = "Volatility",
+                        y = "Returns"),
+                    color = "#A61C3C"
+                    )
+        + geom_point(mapping = aes(x = optimal.T @ covar @ optimal, y=mu @ optimal),
+                     color = "#242331",
+                     #shape=13
+                     ) 
+        + geom_text(mapping = aes(x = optimal.T @ covar @ optimal, y=mu @ optimal),
+                     label = "Optimal",
+                     nudge_y = -0.05,
+                     nudge_x = 5,
+                     size = 7,
+                     ) 
+        + geom_point(aes(x = np.diag(covar), y = mu),
+                     color = "#A27035"
+                     )
+        + geom_text(aes(x = np.diag(covar), y = mu),
+                     label = scenarios.columns,
+                     nudge_y = -0.05,
+                     nudge_x = 5,
+                     size = 7,
+                     position=position_jitter()
+                     )
+        + theme(legend_title = element_text(
+                family = "Calibri",
+                colour = "brown",
+                face = "bold",
+                size = 12))
+        + theme(panel_grid_major = element_line(size = 0.5,
+                                                linetype = 'solid',
+                                                colour = "black"),
+                panel_grid_minor = element_line(size = 0.25,
+                                                linetype = 'solid',
+                                                colour = "black"),
+                panel_background = element_rect(fill = "white"))        
+    ).draw()
