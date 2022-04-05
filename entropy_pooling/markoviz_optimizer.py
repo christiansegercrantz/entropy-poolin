@@ -21,7 +21,7 @@ def load_asset_deltas(filename, sheet_name = None):
         asset_names: List of the names of the assets included in the deltas matrix as indexers
     """
 
-    deltas = pd.read_excel(filename, header = 0, index_col = 0)
+    deltas = pd.read_excel(filename, sheet_name, header = 0, index_col = 0)
     # If there are any missing values, convert them to zeros
     deltas = deltas.fillna(0)
     asset_names = list(deltas.index)
