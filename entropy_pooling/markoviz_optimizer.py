@@ -22,6 +22,8 @@ def load_asset_deltas(filename, sheet_name = None):
     """
 
     deltas = pd.read_excel(filename, header = 0, index_col = 0)
+    # If there are any missing values, convert them to zeros
+    deltas = deltas.fillna(0)
     asset_names = list(deltas.index)
     # Convert delta matrix to a simple numpy array
     deltas = deltas.to_numpy
