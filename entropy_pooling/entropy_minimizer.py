@@ -3,15 +3,24 @@ import numpy as np
 import scipy.optimize as opt
 
 def full_confidence_posterior(p, A, b, C, d):
-    # Computes the full-condifence posterior distribution by finding the constrained
-    # entropy-minimizing set of variables ('posterior distribution')
-    #
-    # Input arguments:
-    # p: the S-element vector of prior probabilities, expected type numpy.ndarray
-    # A: the (J x S) matrix used to express the constraints Ax = b, expected type numpy.ndarray
-    # b: the J-element upper bound vector (1 x J) for equality constraints, expected type numpy.ndarray
-    # C: the (K x S) matrix used to express the constraints Cx <= d, expected type numpy.ndarray
-    # d: the K-element lower bound vector for inequality constraints, expected type numpy.ndarray
+    """Computes the full-condifence posterior distribution by finding the constrained entropy-minimizing set of variables ('posterior distribution')
+    -------------------
+    ### Input arguments:
+        p: numpy.ndarray
+            the S-element vector of prior probabilities
+        A: numpy.ndarray
+            the (J x S) matrix used to express the constraints Ax = b
+        b: numpy.ndarray
+            the J-element upper bound vector (1 x J) for equality constraints
+        C: numpy.ndarray
+            the (K x S) matrix used to express the constraints Cx <= d
+        d: numpy.ndarray
+            the K-element lower bound vector for inequality constraints
+    -------------------
+    ### Returns:
+        posterior: numpy.ndarray
+            the S-element vector of posterior probabilities
+    """
 
     # Change p, b, d shapes to simple np.ndarray if they are more complex
     if p.ndim > 1:
@@ -74,23 +83,28 @@ def full_confidence_posterior(p, A, b, C, d):
     return posterior
 
 def confidence_weighted_posterior(p_prior, p_post, c):
-    # Computes the confidence-weighted posterior distribution,
-    # in fact, computing a c-weighted average of the prior and posterior distributions
-    #
-    # Input arguments:
-    # p_prior: the J-element vector of prior probabilities, expected type numpy.ndarray
-    # p_post: the J-element vector of posterior probabilities, output from full_confidence_posterior, expected type numpy.ndarray
-    # c: a scalar (int or float) or L-element vector (then expected type numpy.ndarray) giving the confidence weight(s).
+    """Computes the confidence-weighted posterior distribution, in fact, computing a c-weighted average of the prior and posterior distributions
+    -------------------
+    ### Input arguments:
+    p_prior: numpy.ndarray
+        the S-element vector of prior probabilities, expected type numpy.ndarray
+    p_post:  numpy.ndarray
+        the S-element vector of posterior probabilities, output from full_confidence_posterior, expected type numpy.ndarray
+    c:       int or float or numpy.ndarray
+        a scalar or C-element vector giving the confidence weight(s).
+    -------------------
+    ### Returns:
+    p_weighted: numpy.ndarray
+        the S-element vector or (S x C) element matrix containing the weighted probabilities
+    """
 
-    # TODO: change error handling to assert()
     if p_prior.ndim > 1:
         p_prior = p_prior.reshape(len(p_prior),)
     if p_post.ndim  > 1:
         p_post  = p_post.reshape(len(p_post),)
 
     assert len(p_prior) == len(p_post), 'Lengths of prior and posterior vectors do not match'
-
-    # Error handling: check that all components of c are within [0, 1]?
+    
     if type(c) in [int, float]:
         assert c >= 0 and c <= 1, 'Value of c must be between 0 and 1'
         p_weighted = (1 - c)*p_prior + c*p_post

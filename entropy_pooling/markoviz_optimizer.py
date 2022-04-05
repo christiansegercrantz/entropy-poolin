@@ -13,7 +13,8 @@ def load_asset_deltas(filename, sheet_name = None):
             of the optimizable assets. (N = number of assets, F = number of factors)
             The data should contain a header (with factor names) and the first row
             contains the indexes (asset names)
-        sheet_name (optional): if the delta matrix is given inside a bigger Excel workbok, then extract the right sheet
+        sheet_name (optional): String
+            If the delta matrix is given inside a bigger Excel workbook, then extract the right sheet
     --------------------
     ### Returns:
         deltas: The (N x F) asset sensitivity ('delta') matrix (in numpy format, without row or column names)
