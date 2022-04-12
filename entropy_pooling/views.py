@@ -89,7 +89,7 @@ def set_col_names(data):
     return df
 
 def cov_vector(data, posterior_mean, name1, name2):
-    a = data.iloc[:][name1] - posterior_mean[name1].values
+    a = data.iloc[:][name1] - posterior_mean[name1].values # data.iloc[:][name1].mean() 
     b = data.iloc[:][name2] - posterior_mean[name2].values
     return a.mul(b)
 
@@ -114,7 +114,8 @@ def append_corr(A, b, C, d, data, posterior_mean, posterior_var, df, ind, rf):
     sign = 1 - 2*('geq' in rf)
     var1 = posterior_var[df.iloc[ind]['asset1']].values
     var2 = posterior_var[df.iloc[ind]['asset2']].values
-    print('Assetit', df.iloc[ind]['asset1'], df.iloc[ind]['asset2'])
+    #var1 = data.iloc[:][df.iloc[ind]['asset1']].var()
+    #var2 = data.iloc[:][df.iloc[ind]['asset2']].var()
     row = cov_vector(data, posterior_mean, df.iloc[ind]['asset1'], df.iloc[ind]['asset2']) / np.sqrt(var1 * var2)
     if 'rel' in rf:
         var3 = posterior_var[df.iloc[ind]['asset3']].values
