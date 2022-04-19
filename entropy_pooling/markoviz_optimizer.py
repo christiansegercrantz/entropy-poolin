@@ -71,7 +71,7 @@ def optimizer(scenarios, probabilities, mu_0, disp = True, visualize = False):
 
     #In case the probabilities vector  is of shape (n,) instead of (n,1)
     if probabilities.ndim == 1:
-        probabilities = probabilities.reshape(len(probabilities),1)
+        probabilities = probabilities.reshape(len(probabilities),1) #try -1 instead  of len(...)
 
     mu, covar = mean_and_var(scenarios, probabilities)
 
