@@ -53,7 +53,7 @@ def asset_scenarios(factor_scenarios, asset_deltas, asset_names):
     asset_scenarios.columns = asset_names
     return asset_scenarios
 
-def optimizer(scenarios, probabilities, mu_0, visualize = False, verbose = 0):
+def optimizer(scenarios, probabilities, mu_0, allow_shorting = False, visualize = False, verbose = 0):
     """Optimizes the weights put on each item the portfolio. This is done by minimizing the volatility of the portfolio at a given return procentage. Also visualized the markoviz model if requested.
     --------------------
     ### Input arguments:
@@ -63,9 +63,11 @@ def optimizer(scenarios, probabilities, mu_0, visualize = False, verbose = 0):
             A (S x 1) vector of prior probabilities
         mu_0: Float
             The return to optimize for, given in decimal as 50% = 0.5
-        visualize: Boolean, Default 'False'
+        allow_shorting: Boolean, Default False
+            Weather to allow shorting, i.e. to not constraint the variable to [0,1] but to ]-inf, inf[
+        visualize: Boolean, Default False
             Plots the efficient prontier, the optimal protoflio, the original portfolio items and a cloud of randomly weighted items.
-        verbose: {0,1,2} , Default '0'
+        verbose: {0,1,2} , Default 0
             Weather to display extra information about the optimization. 0 will display nothing, 1 will display the result of the optimiztion and and error message in case it was not succesful, 2 will additionally to 1 display convergence messages of the optimizer. 
     --------------------
     ### Returns:
@@ -89,7 +91,10 @@ def optimizer(scenarios, probabilities, mu_0, visualize = False, verbose = 0):
     def objective_function(x):
         return  x.T @ covar @ x
 
-    bounds = Bounds(lb = np.zeros(m), ub = np.ones(m)) #[(0, 1) for i in range(m)]
+    if allow_shorting:
+        bounds = Bounds(lb = -np.ones(m)*np.inf, ub = np.ones(m) * np.inf) #[(0, 1) for i in range(m)]
+    else: 
+        bounds = Bounds(lb = np.zeros(m), ub = np.ones(m))
     constraints = (LinearConstraint(np.ones(m), lb=1, ub=1), #Sum of weights 1
                    LinearConstraint(mu, lb=mu_0, ub=np.inf) #Greater or equal to a certain return level
                   )
