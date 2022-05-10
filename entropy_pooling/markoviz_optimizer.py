@@ -94,7 +94,7 @@ def optimizer(scenarios, probabilities, mu_0, allow_shorting = False, visualize 
     if allow_shorting:
         bounds = Bounds(lb = -np.ones(m)*np.inf, ub = np.ones(m) * np.inf) #[(0, 1) for i in range(m)]
     else: 
-        bounds = Bounds(lb = np.zeros(m), ub = np.ones(m))
+        bounds = Bounds(lb = np.zeros(m), ub = np.ones(m) * np.inf)
     constraints = (LinearConstraint(np.ones(m), lb=1, ub=1), #Sum of weights 1
                    LinearConstraint(mu, lb=mu_0, ub=np.inf) #Greater or equal to a certain return level
                   )
