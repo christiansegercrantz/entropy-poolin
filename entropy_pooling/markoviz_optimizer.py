@@ -102,6 +102,7 @@ def optimizer(scenarios, probabilities, mu_0, allow_shorting = False, visualize 
     disp = True if verbose == 2 else False 
     
     res = minimize(objective_function,
+                   method = 'SLSQP',
                    jac=jac,
                    x0 = x0,
                    bounds = bounds,
