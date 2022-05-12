@@ -69,7 +69,7 @@ def optimizer(scenarios, probabilities, mu_0, manual_constraints = None, allow_s
             The second element ought to be a (#Additional_constriants x 1) vector defining the lower bounds of the constraints. The values are to be floats in the range [0,100]
             The third element ought to be a (#Additional_constriants x 1) vector defining the upper bounds of the constraints. The values are to be floats in the range [0,100]
         allow_shorting: Boolean, Default False
-            Weather to allow shorting, i.e. to not constraint the variable to [0,1] but to ]-inf, inf[
+            Weather to allow shorting, i.e. to not constraint the variable to [0,1] but to ]-inf, inf[. Only active if manual_constraints is None
         visualize: Boolean, Default False
             Plots the efficient prontier, the optimal protoflio, the original portfolio items and a cloud of randomly weighted items.
         verbose: {0,1,2} , Default 0
