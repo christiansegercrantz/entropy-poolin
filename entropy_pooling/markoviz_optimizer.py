@@ -53,7 +53,7 @@ def asset_scenarios(factor_scenarios, asset_deltas, asset_names):
     asset_scenarios.columns = asset_names
     return asset_scenarios
 
-def optimizer(scenarios, probabilities, mu_0, additional_constraints = None, allow_shorting = False, visualize = False, verbose = 0):
+def optimizer(scenarios, probabilities, mu_0, manual_constraints = None, allow_shorting = False, visualize = False, verbose = 0):
     """Optimizes the weights put on each item the portfolio. This is done by minimizing the volatility of the portfolio at a given return procentage. Also visualized the markoviz model if requested.
     --------------------
     ### Input arguments:
@@ -63,8 +63,8 @@ def optimizer(scenarios, probabilities, mu_0, additional_constraints = None, all
             A (S x 1) vector of prior probabilities
         mu_0: Float
             The return to optimize for, given in decimal as 50% = 0.5
-        additional_constraints: Tupple(Matrix,Array[Float],Array[Float]) | None, Default: None
-            A tuple to define additional constraints.
+        manual_constraints: Tupple(Matrix,Array[Float],Array[Float]) | None, Default: None
+            A tuple to define the constraints. If not given, we assume only that the sum of all assets is 1 and the assets are bound to [0, inf( (subject to allow_shorting)
             The first element ought to be a (#Additional_constriants x #Assets matrix) defining the additional constraint. The values are to be floats in the range [0,100]
             The second element ought to be a (#Additional_constriants x 1) vector defining the lower bounds of the constraints. The values are to be floats in the range [0,100]
             The third element ought to be a (#Additional_constriants x 1) vector defining the upper bounds of the constraints. The values are to be floats in the range [0,100]
@@ -96,19 +96,21 @@ def optimizer(scenarios, probabilities, mu_0, additional_constraints = None, all
     def objective_function(x):
         return  x.T @ covar @ x
 
-    if allow_shorting:
-        bounds = Bounds(lb = -np.ones(m)*np.inf, ub = np.ones(m) * np.inf) #[(0, 1) for i in range(m)]
-    else: 
-        bounds = Bounds(lb = np.zeros(m), ub = np.ones(m) * np.inf)
-    constraints = (LinearConstraint(np.ones(m), lb=1, ub=1), #Sum of weights 1
-                   LinearConstraint(mu, lb=mu_0, ub=np.inf) #Greater or equal to a certain return level
-                  )
-    if additional_constraints is not None:
-        new_constraint = (LinearConstraint(additional_constraints[0],
-                                            lb = additional_constraints[1],
-                                            ub = additional_constraints[2]
-                                         ),)
-        constraints = constraints + new_constraint
+    
+
+    if manual_constraints is not None:
+        constraints = (LinearConstraint(manual_constraints[0],      #A in Ax=b
+                                        lb = manual_constraints[1], #Lower bound
+                                        ub = manual_constraints[2]  #Upper Bound
+                                       ),)
+    else:
+        if allow_shorting:
+            bounds = Bounds(lb = -np.ones(m)*np.inf, ub = np.ones(m) * np.inf)
+        else: 
+            bounds = Bounds(lb = np.zeros(m), ub = np.ones(m) * np.inf)
+        constraints = (LinearConstraint(np.ones(m), lb=1, ub=1), #Sum of weights 1
+                       LinearConstraint(mu, lb=mu_0, ub=np.inf) #Greater or equal to a certain return level
+                )
                           
 
     disp = True if verbose == 2 else False 
