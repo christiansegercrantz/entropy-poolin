@@ -9,8 +9,8 @@ In this code library, views can be given for mean, volatility and correlation. V
 | * View on | * Risk factor 1         | Risk factor 2       (applicable for corr) | * Operator | * Constant       (alpha) | Multiplier       (beta) | Risk factor 3 | Risk factor 4       (applicable for corr) |
 |-----------|-------------------------|-------------------------------------------|------------|--------------------------|-------------------------|---------------|-------------------------------------------|
 | Mean      | Eurozone Core Inflation |                                           |          = |            0.01           |                         |               |                                           |
-|           |                         |                                           |            |                          |                         |               |                                           |
-|           |                         |                                           |            |                          |                         |               |                                           |
+| | | | | | | | |
+
 
 Note, that Excel will show 0.01 as 1 %, if percentage units are used. By leaving blank cells (or dash **-**), the program knows that we're dealing with an absolute view.
 
@@ -19,8 +19,7 @@ Note, that Excel will show 0.01 as 1 %, if percentage units are used. By leaving
 | * View on | * Risk factor 1         | Risk factor 2       (applicable for corr) | * Operator | * Constant       (alpha) | Multiplier       (beta) | Risk factor 3 | Risk factor 4       (applicable for corr) |
 |-----------|-------------------------|-------------------------------------------|------------|--------------------------|-------------------------|---------------|-------------------------------------------|
 | Mean      | Eurozone Core Inflation |                                           |          > |            0.01           |       1                 | US Core Inflation  |                                           |
-|           |                         |                                           |            |                          |                         |               |                                           |
-|           |                         |                                           |            |                          |                         |               |                                           |
+| | | | | | | | |
 
 Note, that in a relative case, a valid multiplier must be provided. The multiplier acts on the *Risk factor 3* (and *Risk factor 4* in the case of a correlation view). In mathematical terms,
 
@@ -39,13 +38,12 @@ Only with correlation, are *Risk factor 2* and *Risk factor 4* used.
 | * View on | * Risk factor 1         | Risk factor 2       (applicable for corr) | * Operator | * Constant       (alpha) | Multiplier       (beta) | Risk factor 3 | Risk factor 4       (applicable for corr) |
 |-----------|-------------------------|-------------------------------------------|------------|--------------------------|-------------------------|---------------|-------------------------------------------|
 | Corr      | Eurozone Core Inflation |  US Core Inflation         |          > |            0.8           |                         |   |                                           |
-|           |                         |                                           |            |                          |                         |               |                                           |
-|           |                         |                                           |            |                          |                         |               |                                           |
+| | | | | | | | |
 
 ## Possible errors
 The following cases must be **satisfied**
-1. With correlation view, (*Risk factor 1*) $\neq$ (*Risk factor 2*) and (*Risk factor 3*) $\neq$ (*Risk factor 4*).
-2. With any relative view, (*Risk factor 1*) $\neq$ (*Risk factor 3*) and with relative correlation, (*Risk factor 2*) $\neq$ (*Risk factor 4*).
-3. Correlation only gets values from $-1$ to $1$.
-4. Volatility is always positive, or zero.
-5. The view rows should not lead to contradictions (e.g., rows (*Eurozone Core Inflation*) = 1 %, and (*Eurozone Core Inflation*) = 2 % lead to a contradiction)
+* The view rows should not lead to contradictions (e.g., rows (*Eurozone Core Inflation*) = 1 %, and (*Eurozone Core Inflation*) = 2 % lead to a contradiction)
+* Volatility is always positive, or zero.
+* Correlation only gets values from $-1$ to $1$.
+* With correlation view, (*Risk factor 1*) $\neq$ (*Risk factor 2*) and (*Risk factor 3*) $\neq$ (*Risk factor 4*).
+* With any relative view, (*Risk factor 1*) $\neq$ (*Risk factor 3*) and with relative correlation, (*Risk factor 2*) $\neq$ (*Risk factor 4*).
