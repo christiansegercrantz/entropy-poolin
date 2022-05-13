@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import math
 from cvxopt import matrix, solvers # pip install cvxopt
+from IPython.utils import io
 #from mosek import iparam
 
 # TODO:
@@ -11,7 +12,7 @@ from cvxopt import matrix, solvers # pip install cvxopt
 # Test for bugs!
 # Test for unexpected inputs. Anything can happen!
 # We could do try/except for each row. The software will then alert and ignore weird rows.
-# Infeasible constraints (e.g. Example Equity = 0.5 % and Example Equity > 0.6 % is an infeasible combination)
+# Infeasible constraints (e.g. Example Equity = 0.5 % and Example Equity = 0.6 % is an infeasible combination)
 # Clean the code... it's very messy right now...
 
 # Below are the column names. LHS contains the code names used in this script. RHS contains the ones used in the Excel-file.
@@ -29,7 +30,11 @@ cols = {'type'      : '* View on',
 # load() IS THE MAIN FUNCTION
 # It returns a tuple (A,b,C,d), which contain the constraints Ax = b and Cx <= d.
 
-def load(data = pd.read_excel("data.xlsx")):
+def load(data = pd.read_excel("data.xlsx")): # load_debug, but output is supressed
+    with io.capture_output() as captured:
+        return load_debug(data)
+
+def load_debug(data = pd.read_excel("data.xlsx")):
 
     df = pd.read_excel("views.xlsx")
     df = set_col_names(df) # adds columns with new names
@@ -63,7 +68,6 @@ def load(data = pd.read_excel("data.xlsx")):
     # Again, for linear correlation constraints, we need to fix the volatilities.
     # As with the mean values, we solve a feasible (near-)optimal solution
     posterior_var = solve_feasible_posterior(data, df, 'var')
-    print(posterior_mean[['Global Equities','DM Equities']])
     # COVARIANCE CONSTRAINTS
 
     # Add the constraints to output matrices and vectors...
@@ -76,13 +80,14 @@ def load(data = pd.read_excel("data.xlsx")):
 
 def set_col_names(data):
     df = data.copy(deep=True)
-    cols = {'type'      : '* View on',
-        'asset1'    : '* Risk factor 1',
-        'asset2'    : 'Risk factor 2 \n(applicable for corr)',
-        'eq_ineq'   : '* Operator',
-        'parameter' : '* Constant \n(alpha)',
-        'asset3'    : 'Risk factor 3',
-        'asset4'    : 'Risk factor 4 \n(applicable for corr)' # pitää lisätä vielä beta!
+    cols = {'type'   : '* View on',
+        'asset1'     : '* Risk factor 1',
+        'asset2'     : 'Risk factor 2 \n(applicable for corr)',
+        'asset3'     : 'Risk factor 3',
+        'asset4'     : 'Risk factor 4 \n(applicable for corr)',
+        'eq_ineq'    : '* Operator',
+        'parameter'  : '* Constant \n(alpha)',
+        'multiplier' : 'Multiplier \n(beta)'
     }
     for key, value in cols.items():
         df = df.rename(columns={value:key})
@@ -94,14 +99,16 @@ def cov_vector(data, posterior_mean, name1, name2):
     return a.mul(b)
 
 def returns_to_monthly(r):
+    print(r)
+    print(type(r))
     return (r+1)**(1/12)-1
 
 def append_mean(A, b, C, d, data, df, ind, rf):
-    sign = 1 - 2*('geq' in rf)
+    sign = 1 - 2*('geq' in rf) # Either +1 or -1
     row = data.iloc[:][df.iloc[ind]['asset1']]
-    element = returns_to_monthly(sign*df.iloc[ind]['parameter'])
+    element = sign*returns_to_monthly(df.iloc[ind]['parameter'])
     if 'rel' in rf:
-        row = row - data.iloc[:][df.iloc[ind]['asset3']]
+        row = row - data.iloc[:][df.iloc[ind]['asset3']] * data.iloc[:][df.iloc[ind]['multiplier']]
         #element = element / 12
     
     # Append new row and element with vstack
@@ -111,7 +118,7 @@ def append_mean(A, b, C, d, data, df, ind, rf):
         return (np.vstack([A, sign*row]), np.vstack([b, element]),C,d)
 
 def append_corr(A, b, C, d, data, posterior_mean, posterior_var, df, ind, rf):
-    sign = 1 - 2*('geq' in rf)
+    sign = 1 - 2*('geq' in rf) # Either +1 or -1
     var1 = posterior_var[df.iloc[ind]['asset1']].values
     var2 = posterior_var[df.iloc[ind]['asset2']].values
     #var1 = data.iloc[:][df.iloc[ind]['asset1']].var()
@@ -131,10 +138,18 @@ def append_corr(A, b, C, d, data, posterior_mean, posterior_var, df, ind, rf):
         return (A_new, b_new, C, d)
 
 def append_var(A, b, C, d, data, posterior_mean, df, ind, rf):
-    sign = 1 - 2*('geq' in rf)
+    sign = 1 - 2*('geq' in rf) # Either +1 or -1
     row = cov_vector(data, posterior_mean, df.iloc[ind]['asset1'], df.iloc[ind]['asset1'])
+    #print('Hellurei')
     if 'rel' in rf:
-        row = row - cov_vector(data, posterior_mean, df.iloc[ind]['asset3'], df.iloc[ind]['asset3'])
+        prior_variances = data.var()
+        prior_vol_1 = np.sqrt(prior_variances[df.iloc[ind]['asset1']])
+        prior_vol_3 = np.sqrt(prior_variances[df.iloc[ind]['asset3']])
+        #print('Hellurei')
+        #print(prior_vol_1)
+        row = row * (1 - prior_vol_3**2 / (prior_vol_1 * prior_vol_3))
+        row = row - cov_vector(data, posterior_mean, df.iloc[ind]['asset3'], df.iloc[ind]['asset3']) * (df.iloc[ind]['multiplier']**2 - df.iloc[ind]['multiplier'] * prior_vol_1**2 / (prior_vol_1 * prior_vol_3) )
+        #row = row - cov_vector(data, posterior_mean, df.iloc[ind]['asset3'], df.iloc[ind]['asset3'])
     if ('leq' in rf) or ('geq' in rf):
         C_new = np.vstack([C, sign*row])
         d_new = np.vstack([d, sign*df.iloc[ind]['parameter']**2 / 12]) # 1/12 to annualize volatility
@@ -142,7 +157,7 @@ def append_var(A, b, C, d, data, posterior_mean, df, ind, rf):
     else:
         A_new = np.vstack([A, sign*row])
         b_new = np.vstack([b, sign*df.iloc[ind]['parameter']**2 / 12]) # 1/12 to annualize volatility
-        return (A_new, b_new, C, d) # 1/12 to annualize volatility
+        return (A_new, b_new, C, d)
 
 # Function that reads the format of the row (e.g. non-relative mean equality)
 def row_format(ind, df = pd.read_excel("views.xlsx")):
