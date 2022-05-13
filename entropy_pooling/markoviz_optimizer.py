@@ -9,7 +9,7 @@ def load_asset_deltas(filename, sheet_name = 0):
     --------------------
     ### Input arguments:
         filename: String
-            The name of the excel file that contains the (N x F) matrix of the factor sensitivites
+            The name of the excel file that contains the (F x N) matrix of the factor sensitivites
             of the optimizable assets. (N = number of assets, F = number of factors)
             The data should contain a header (with factor names) and the first row
             contains the indexes (asset names)
@@ -17,7 +17,7 @@ def load_asset_deltas(filename, sheet_name = 0):
             If the delta matrix is given inside a bigger Excel workbook, then extract the right sheet
     --------------------
     ### Returns:
-        deltas: The (N x F) asset sensitivity ('delta') matrix (in numpy format, without row or column names)
+        deltas: The (F x N) asset sensitivity ('delta') matrix (in numpy format, without row or column names)
         asset_names: List of the names of the assets included in the deltas matrix as indexers
     """
 
@@ -25,22 +25,20 @@ def load_asset_deltas(filename, sheet_name = 0):
 
     # If there are any missing values, convert them to zeros
     deltas = deltas.fillna(0)
-    asset_names = list(deltas.index)
+    asset_names = list(deltas.columns)
     # Convert delta matrix to a simple numpy array
     deltas = deltas.to_numpy()
 
     return deltas, asset_names
 
-def asset_scenarios(factor_scenarios, asset_deltas, asset_names):
+def asset_scenarios(factor_scenarios, asset_deltas):
     """Computes the scenario-wise returns for each portfolio asset using the factor scenarios matrix and asset delta matrix.
     --------------------
     ### Input arguments:
         factor_scenarios: Matrix
         A (S x F) matrix of factor return scenarios
         asset_deltas: Matrix
-        A (N x F) matrix of asset sensitivities ('deltas') to changes in factors
-        asset_names: List
-        A (N x 1) list of the asset names
+        A (F x N) matrix of asset sensitivities ('deltas') to changes in factors
     --------------------
     ### Returns:
         asset_scenarios:
@@ -49,8 +47,7 @@ def asset_scenarios(factor_scenarios, asset_deltas, asset_names):
 
     # Check that the F dimension matches
     assert factor_scenarios.shape[1] == asset_deltas.shape[1], "The number of factors (x dimension) is not the same for the input matrices."
-    asset_scenarios = factor_scenarios @ asset_deltas.T
-    asset_scenarios.columns = asset_names
+    asset_scenarios = factor_scenarios @ asset_deltas
     return asset_scenarios
 
 def optimizer(scenarios, probabilities, mu_0, manual_constraints = None, allow_shorting = False, visualize = False, verbose = 0):
@@ -73,7 +70,7 @@ def optimizer(scenarios, probabilities, mu_0, manual_constraints = None, allow_s
         visualize: Boolean, Default False
             Plots the efficient prontier, the optimal protoflio, the original portfolio items and a cloud of randomly weighted items.
         verbose: {0,1,2} , Default 0
-            Weather to display extra information about the optimization. 0 will display nothing, 1 will display the result of the optimiztion and and error message in case it was not succesful, 2 will additionally to 1 display convergence messages of the optimizer. 
+            Weather to display extra information about the optimization. 0 will display nothing, 1 will display the result of the optimiztion and and error message in case it was not succesful, 2 will additionally to 1 display convergence messages of the optimizer.
     --------------------
     ### Returns:
         res:
@@ -96,7 +93,7 @@ def optimizer(scenarios, probabilities, mu_0, manual_constraints = None, allow_s
     def objective_function(x):
         return  x.T @ covar @ x
 
-    
+
 
     if manual_constraints is not None:
         constraints = (LinearConstraint(manual_constraints[0],      #A in Ax=b
@@ -106,15 +103,15 @@ def optimizer(scenarios, probabilities, mu_0, manual_constraints = None, allow_s
     else:
         if allow_shorting:
             bounds = Bounds(lb = -np.ones(m)*np.inf, ub = np.ones(m) * np.inf)
-        else: 
+        else:
             bounds = Bounds(lb = np.zeros(m), ub = np.ones(m) * np.inf)
         constraints = (LinearConstraint(np.ones(m), lb=1, ub=1), #Sum of weights 1
                        LinearConstraint(mu, lb=mu_0, ub=np.inf) #Greater or equal to a certain return level
                 )
-                          
 
-    disp = True if verbose == 2 else False 
-    
+
+    disp = True if verbose == 2 else False
+
     res = minimize(objective_function,
                    method = 'SLSQP',
                    jac=jac,
@@ -127,7 +124,7 @@ def optimizer(scenarios, probabilities, mu_0, manual_constraints = None, allow_s
         print(f"The optimization was succesful: {res.success}")
         if not res.success:
             print(f"The optimization was terminated due to: \n{res.message}")
-    
+
     if visualize:
         vizualization(covar, mu, optimal = res.x, frontier=True, scenarios = scenarios, probabilities = probabilities)
     return res
@@ -219,7 +216,7 @@ def vizualization(covar,
     #     ax.plot(frontier_var, frontier_mu, color='red');
     # plt.show();
 
-    
+
 
     generated_df = pd.DataFrame(list(zip(port_vol,
                                     port_returns)),
