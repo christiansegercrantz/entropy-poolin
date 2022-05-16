@@ -50,7 +50,7 @@ def asset_scenarios(factor_scenarios, asset_deltas):
     asset_scenarios = factor_scenarios @ asset_deltas
     return asset_scenarios
 
-def optimizer(scenarios, probabilities, mu_0, manual_constraints = None, allow_shorting = False, visualize = False, verbose = 0):
+def optimizer(scenarios, probabilities, mu_0, total = 1, manual_constraints = None, allow_shorting = False, visualize = False, verbose = 0):
     """Optimizes the weights put on each item the portfolio. This is done by minimizing the volatility of the portfolio at a given return procentage. Also visualized the markoviz model if requested.
     --------------------
     ### Input arguments:
@@ -60,6 +60,8 @@ def optimizer(scenarios, probabilities, mu_0, manual_constraints = None, allow_s
             A (S x 1) vector of prior probabilities
         mu_0: Float
             The return to optimize for, given in decimal as 50% = 0.5
+        total: Float, default = 1
+            The total amount of resources available for allocation
         manual_constraints: Tupple(Matrix,Array[Float],Array[Float]) | None, Default: None
             A tuple to define the constraints. If not given, we assume only that the sum of all assets is 1 and the assets are bound to [0, inf( (subject to allow_shorting)
             The first element ought to be a (#Additional_constriants x #Assets matrix) defining the additional constraint. The values are to be floats in the range [0,100]
@@ -93,19 +95,20 @@ def optimizer(scenarios, probabilities, mu_0, manual_constraints = None, allow_s
     def objective_function(x):
         return  x.T @ covar @ x
 
-
-
     if manual_constraints is not None:
         constraints = (LinearConstraint(manual_constraints[0],      #A in Ax=b
                                         lb = manual_constraints[1], #Lower bound
                                         ub = manual_constraints[2]  #Upper Bound
-                                       ),)
+                                       ),
+                       LinearConstraint(np.ones(m), lb=total, ub=total) #Sum of weights to total
+                      )
     else:
         if allow_shorting:
             bounds = Bounds(lb = -np.ones(m)*np.inf, ub = np.ones(m) * np.inf)
         else:
             bounds = Bounds(lb = np.zeros(m), ub = np.ones(m) * np.inf)
-        constraints = (LinearConstraint(np.ones(m), lb=1, ub=1), #Sum of weights 1
+            
+        constraints = (LinearConstraint(np.ones(m), lb=total, ub=total), #Sum of weights to total
                        LinearConstraint(mu, lb=mu_0, ub=np.inf) #Greater or equal to a certain return level
                 )
 
