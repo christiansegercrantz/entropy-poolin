@@ -1,8 +1,7 @@
 import numpy as np
 import pandas as pd
 from scipy.optimize import minimize, LinearConstraint, Bounds
-import matplotlib.pyplot as plt
-from plotnine import ggplot, geom_point, aes, geom_line, labs, geom_text, position_jitter, theme, element_text, theme_linedraw, element_line, element_rect
+from plotnine import ggplot, geom_point, aes, geom_line, labs, geom_text, position_jitter, theme, element_text, theme_linedraw, element_line, element_rect, scale_y_continuous, scale_x_continuous
 
 def load_asset_deltas(filename, sheet_name = 0):
     """Uploads the data containing the asset delta matrix from the given Excel file.
@@ -51,7 +50,7 @@ def asset_scenarios(factor_scenarios, asset_deltas, asset_names):
     asset_scenarios.columns = asset_names
     return asset_scenarios
 
-def optimizer(scenarios, probabilities, mu_0, total = 1, manual_constraints = None, allow_shorting = False, visualize = False, verbose = 0):
+def optimizer(scenarios, probabilities, mu_0, manual_constraints = None, allow_shorting = False, visualize = False, verbose = 0):
     """Optimizes the weights put on each item the portfolio. This is done by minimizing the volatility of the portfolio at a given return procentage. Also visualized the markoviz model if requested.
     --------------------
     ### Input arguments:
@@ -61,8 +60,6 @@ def optimizer(scenarios, probabilities, mu_0, total = 1, manual_constraints = No
             A (S x 1) vector of prior probabilities
         mu_0: Float
             The return to optimize for, given in decimal as 50% = 0.5
-        total: Float, default = 1
-            The total amount of resources available for allocation
         manual_constraints: Tupple(Matrix,Array[Float],Array[Float]) | None, Default: None
             A tuple to define the constraints. If not given, we assume only that the sum of all assets is 1 and the assets are bound to [0, inf( (subject to allow_shorting)
             The first element ought to be a (#Additional_constriants x #Assets matrix) defining the additional constraint. The values are to be floats in the range [0,100]
@@ -101,7 +98,7 @@ def optimizer(scenarios, probabilities, mu_0, total = 1, manual_constraints = No
                                         lb = manual_constraints[1], #Lower bound
                                         ub = manual_constraints[2]  #Upper Bound
                                        ),
-                       LinearConstraint(np.ones(m), lb=total, ub=total) #Sum of weights to total
+                       LinearConstraint(np.ones(m), lb=1, ub=1) #Sum of weights to 1
                       )
         bounds = None
     else:
@@ -110,7 +107,7 @@ def optimizer(scenarios, probabilities, mu_0, total = 1, manual_constraints = No
         else:
             bounds = Bounds(lb = np.zeros(m), ub = np.ones(m) * np.inf)
             
-        constraints = (LinearConstraint(np.ones(m), lb=total, ub=total), #Sum of weights to total
+        constraints = (LinearConstraint(np.ones(m), lb=1, ub=1), #Sum of weights to total
                        LinearConstraint(mu, lb=mu_0, ub=np.inf) #Greater or equal to a certain return level
                 )
 
@@ -154,7 +151,7 @@ def mean_and_var(scenarios, probabilities):
     m,n = scenarios.shape
     probabilities_reshaped = np.asarray(probabilities).reshape(m,)
     mu = np.average(scenarios, axis=0, weights = probabilities_reshaped)
-    covar = np.cov(scenarios, rowvar = False, aweights = probabilities_reshaped) #* 252 #annualization constant
+    covar = np.cov(scenarios, rowvar = False, aweights = probabilities_reshaped)
     return mu, covar
 
 def vizualization(covar,
@@ -247,6 +244,8 @@ def vizualization(covar,
                                                 colour = "black"),
                 panel_background = element_rect(fill = "white"))
         + labs(title="Optimal solution", y="Returns", x="Volatility")
+        + scale_y_continuous(labels=lambda l: ["%.1f%%" % (v * 100) for v in l])
+        + scale_x_continuous(labels=lambda l: ["%.3f%%" % (v * 100) for v in l])
         + geom_point(data = generated_df,
                      mapping = aes(x = "Volatility",
                         y = "Returns"),
@@ -263,8 +262,8 @@ def vizualization(covar,
                      )
         + geom_text(mapping = aes(x = optimal.T @ covar @ optimal, y=mu @ optimal),
                      label = "Optimal",
-                     nudge_y = -0.02,
-                     nudge_x = 3,
+                     #nudge_y = -0.02,
+                     #nudge_x = 0.5,
                      size = 7,
                      )
         + geom_point(aes(x = np.diag(covar), y = mu),
@@ -272,8 +271,8 @@ def vizualization(covar,
                      )
         + geom_text(aes(x = np.diag(covar), y = mu),
                      label = scenarios.columns,
-                     nudge_y = -0.02,
-                     nudge_x = 3,
+                     #nudge_y = -0.02,
+                     #nudge_x = 0.5,
                      size = 7,
                      position=position_jitter()
                      )
