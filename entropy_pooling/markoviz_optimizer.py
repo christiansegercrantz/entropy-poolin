@@ -46,7 +46,7 @@ def asset_scenarios(factor_scenarios, asset_deltas):
     """
 
     # Check that the F dimension matches
-    assert factor_scenarios.shape[1] == asset_deltas.shape[1], "The number of factors (x dimension) is not the same for the input matrices."
+    assert factor_scenarios.shape[1] == asset_deltas.shape[0], "The number of factors (x dimension) is not the same for the input matrices."
     asset_scenarios = factor_scenarios @ asset_deltas
     return asset_scenarios
 
