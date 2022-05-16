@@ -62,11 +62,12 @@ def full_confidence_posterior(p, A, b, C, d):
         dxdl = -p * np.exp(-1) * np.exp(-1 * A.T @ v) * np.exp(-1 * C.T @ l) * C
         # dxdv = -p * np.exp(-1) * np.exp(-1 * np.dot(np.transpose(C), l)) * np.exp(-1 * np.dot(np.transpose(A), v)) * A # TODO: transpose(A)?
         dxdv = -p * np.exp(-1) * np.exp(-1 * A.T @ v) * np.exp(-1 * C.T @ l) * A
-
         # Jacl = -1 * np.dot(C, x) + np.dot(dxdl, lnx_lnp) + np.dot(C, x) - d + np.dot(dxdl, np.dot(l, C) + np.dot(v, A))
-        Jacl = -1 * (C @ x) + dxdl @ lnx_lnp + C @ x - d + dxdl @ (l @ C + v @ A)
+        #Jacl = -1 * (C @ x) + dxdl @ lnx_lnp + C @ x - d + dxdl @ (l @ C + v @ A)
+        Jacl = dxdl @ lnx_lnp - d + dxdl @ (l @ C + v @ A)
         # Jacv = -1 * np.dot(A, x) + np.dot(dxdv, lnx_lnp) + np.dot(A, x) - b + np.dot(dxdv, np.dot(v, A) + np.dot(l, C))
-        Jacv = -1 * (A @ x) + dxdv @ lnx_lnp + A @ x - b + dxdv @ (v @ A + l @ C)
+        # Jacv = -1 * (A @ x) + dxdv @ lnx_lnp + A @ x - b + dxdv @ (v @ A + l @ C)
+        Jacv = dxdv @ lnx_lnp - b + dxdv @ (v @ A + l @ C)
 
         Jac = np.concatenate((Jacl, Jacv))
         return -1 * Jac # we minimize the negative of dual --> we need minus sign in gradient
@@ -104,7 +105,7 @@ def confidence_weighted_posterior(p_prior, p_post, c):
         p_post  = p_post.reshape(len(p_post),)
 
     assert len(p_prior) == len(p_post), 'Lengths of prior and posterior vectors do not match'
-    
+
     if type(c) in [int, float]:
         assert c >= 0 and c <= 1, 'Value of c must be between 0 and 1'
         p_weighted = (1 - c)*p_prior + c*p_post
