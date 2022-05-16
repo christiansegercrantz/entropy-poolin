@@ -98,7 +98,8 @@ def optimizer(scenarios, probabilities, mu_0, manual_constraints = None, allow_s
                                         lb = manual_constraints[1], #Lower bound
                                         ub = manual_constraints[2]  #Upper Bound
                                        ),
-                       LinearConstraint(np.ones(m), lb=1, ub=1) #Sum of weights to 1
+                       LinearConstraint(np.ones(m), lb=1, ub=1), #Sum of weights to 1
+                       LinearConstraint(mu, lb=mu_0, ub=np.inf)
                       )
         bounds = None
     else:
