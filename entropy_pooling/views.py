@@ -101,14 +101,18 @@ def cov_vector(data, posterior_mean, name1, name2):
 def returns_to_monthly(r):
     print(r)
     print(type(r))
-    return (r+1)**(1/12)-1
+    return (np.abs(r+1))**(1/12)-1
 
 def append_mean(A, b, C, d, data, df, ind, rf):
     sign = 1 - 2*('geq' in rf) # Either +1 or -1
     row = data.iloc[:][df.iloc[ind]['asset1']]
     element = sign*returns_to_monthly(df.iloc[ind]['parameter'])
     if 'rel' in rf:
-        row = row - data.iloc[:][df.iloc[ind]['asset3']] * data.iloc[:][df.iloc[ind]['multiplier']]
+        if (isinstance(df.iloc[ind]['multiplier'], float) and math.isnan(df.iloc[ind]['multiplier'])) or df.iloc[ind]['multiplier']=="-":
+            multiplier = 1.0
+        else:
+            multiplier = df.iloc[ind]['multiplier']
+        row = row - data.iloc[:][df.iloc[ind]['asset3']] * multiplier
         #element = element / 12
     
     # Append new row and element with vstack
@@ -125,9 +129,13 @@ def append_corr(A, b, C, d, data, posterior_mean, posterior_var, df, ind, rf):
     #var2 = data.iloc[:][df.iloc[ind]['asset2']].var()
     row = cov_vector(data, posterior_mean, df.iloc[ind]['asset1'], df.iloc[ind]['asset2']) / np.sqrt(var1 * var2)
     if 'rel' in rf:
+        if (isinstance(df.iloc[ind]['multiplier'], float) and math.isnan(df.iloc[ind]['multiplier'])) or df.iloc[ind]['multiplier']=="-":
+            multiplier = 1.0
+        else:
+            multiplier = df.iloc[ind]['multiplier']
         var3 = posterior_var[df.iloc[ind]['asset3']].values
         var4 = posterior_var[df.iloc[ind]['asset4']].values
-        row = row - cov_vector(data, posterior_mean, df.iloc[ind]['asset3'], df.iloc[ind]['asset4']) / np.sqrt(var3 * var4)
+        row = row - multiplier * cov_vector(data, posterior_mean, df.iloc[ind]['asset3'], df.iloc[ind]['asset4']) / np.sqrt(var3 * var4)
     if ('leq' in rf) or ('geq' in rf):
         C_new = np.vstack([C, sign*row])
         d_new = np.vstack([d, sign*df.iloc[ind]['parameter']])
@@ -148,7 +156,11 @@ def append_var(A, b, C, d, data, posterior_mean, df, ind, rf):
         #print('Hellurei')
         #print(prior_vol_1)
         row = row * (1 - prior_vol_3**2 / (prior_vol_1 * prior_vol_3))
-        row = row - cov_vector(data, posterior_mean, df.iloc[ind]['asset3'], df.iloc[ind]['asset3']) * (df.iloc[ind]['multiplier']**2 - df.iloc[ind]['multiplier'] * prior_vol_1**2 / (prior_vol_1 * prior_vol_3) )
+        if (isinstance(df.iloc[ind]['multiplier'], float) and math.isnan(df.iloc[ind]['multiplier'])) or df.iloc[ind]['multiplier']=="-":
+            multiplier = 1.0
+        else:
+            multiplier = df.iloc[ind]['multiplier']
+        row = row - cov_vector(data, posterior_mean, df.iloc[ind]['asset3'], df.iloc[ind]['asset3']) * (multiplier**2 - multiplier * prior_vol_1**2 / (prior_vol_1 * prior_vol_3) )
         #row = row - cov_vector(data, posterior_mean, df.iloc[ind]['asset3'], df.iloc[ind]['asset3'])
     if ('leq' in rf) or ('geq' in rf):
         C_new = np.vstack([C, sign*row])
