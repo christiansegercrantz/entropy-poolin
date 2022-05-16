@@ -102,6 +102,7 @@ def optimizer(scenarios, probabilities, mu_0, total = 1, manual_constraints = No
                                        ),
                        LinearConstraint(np.ones(m), lb=total, ub=total) #Sum of weights to total
                       )
+        bounds = None
     else:
         if allow_shorting:
             bounds = Bounds(lb = -np.ones(m)*np.inf, ub = np.ones(m) * np.inf)
