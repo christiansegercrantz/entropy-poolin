@@ -31,7 +31,7 @@ def load_asset_deltas(filename, sheet_name = 0):
 
     return deltas, asset_names
 
-def asset_scenarios(factor_scenarios, asset_deltas):
+def asset_scenarios(factor_scenarios, asset_deltas, asset_names):
     """Computes the scenario-wise returns for each portfolio asset using the factor scenarios matrix and asset delta matrix.
     --------------------
     ### Input arguments:
@@ -48,6 +48,7 @@ def asset_scenarios(factor_scenarios, asset_deltas):
     # Check that the F dimension matches
     assert factor_scenarios.shape[1] == asset_deltas.shape[0], "The number of factors (x dimension) is not the same for the input matrices."
     asset_scenarios = factor_scenarios @ asset_deltas
+    asset_scenarios.columns = asset_names
     return asset_scenarios
 
 def optimizer(scenarios, probabilities, mu_0, total = 1, manual_constraints = None, allow_shorting = False, visualize = False, verbose = 0):
