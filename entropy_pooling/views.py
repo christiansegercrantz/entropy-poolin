@@ -30,11 +30,11 @@ cols = {'type'      : '* View on',
 # load() IS THE MAIN FUNCTION
 # It returns a tuple (A,b,C,d), which contain the constraints Ax = b and Cx <= d.
 
-def load(data = pd.read_excel("data.xlsx"), views_subsheet_name = 0, views_sheet_name = "views.xlsx"): # load_debug, but output is supressed
+def load(data = pd.read_excel("data/data.xlsx"), views_subsheet_name = 0, views_sheet_name = "views.xlsx"): # load_debug, but output is supressed
     with io.capture_output() as captured:
         return load_debug(data, views_subsheet_name, views_sheet_name)
 
-def load_debug(data = pd.read_excel("data.xlsx"), views_subsheet_name = 0, views_sheet_name = "views.xlsx"):
+def load_debug(data = pd.read_excel("data/data.xlsx"), views_subsheet_name = 0, views_sheet_name = "data/views.xlsx"):
 
     df = pd.read_excel(views_sheet_name, sheet_name=views_subsheet_name)
     df = set_col_names(df) # adds columns with new names
@@ -173,7 +173,7 @@ def append_var(A, b, C, d, data, posterior_mean, df, ind, rf):
         return (A_new, b_new, C, d)
 
 # Function that reads the format of the row (e.g. non-relative mean equality)
-def row_format(ind, df = pd.read_excel("views.xlsx")):
+def row_format(ind, df = pd.read_excel("data/views.xlsx")):
     # If Excel cell 'asset3' is left empty, we are dealing with absolute view
     # Otherwise relative view
     if (isinstance(df.iloc[ind]['asset3'], float) and math.isnan(df.iloc[ind]['asset3'])) or df.iloc[ind]['asset3']=="-":
