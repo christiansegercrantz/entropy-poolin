@@ -30,13 +30,13 @@ cols = {'type'      : '* View on',
 # load() IS THE MAIN FUNCTION
 # It returns a tuple (A,b,C,d), which contain the constraints Ax = b and Cx <= d.
 
-def load(data = pd.read_excel("data.xlsx"), views_sheet_name = 0, sheet_name = "views.xlsx"): # load_debug, but output is supressed
+def load(data = pd.read_excel("data.xlsx"), views_subsheet_name = 0, views_sheet_name = "views.xlsx"): # load_debug, but output is supressed
     with io.capture_output() as captured:
-        return load_debug(data, views_sheet_name, sheet_name)
+        return load_debug(data, views_subsheet_name, views_sheet_name)
 
-def load_debug(data = pd.read_excel("data.xlsx"), views_sheet_name = 0, sheet_name = "views.xlsx"):
+def load_debug(data = pd.read_excel("data.xlsx"), views_subsheet_name = 0, views_sheet_name = "views.xlsx"):
 
-    df = pd.read_excel(sheet_name, sheet_name=views_sheet_name)
+    df = pd.read_excel(views_sheet_name, sheet_name=views_subsheet_name)
     df = set_col_names(df) # adds columns with new names
     data = data/100 # data is in precentages
     # Initialize output matrices and vectors
