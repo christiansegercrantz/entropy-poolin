@@ -96,6 +96,8 @@ def optimizer(scenarios, probabilities, mu_0, total = 1, manual_constraints = No
         return  x.T @ covar @ x
 
     if manual_constraints is not None:
+        # We split the constraints into equality and inequality constraints for efficient optimization.
+        # Unclear if this is a speed up or not for the portfolio sizes in question
         equality_constraint_matrix = manual_constraints[0].copy(deep=True)
         inequality_constraint_matrix = manual_constraints[0].copy(deep=True)
         equality_constraint_lb = manual_constraints[1].copy(deep=True)
@@ -111,13 +113,7 @@ def optimizer(scenarios, probabilities, mu_0, total = 1, manual_constraints = No
                 inequality_constraint_matrix.drop(index = i, inplace=True)
                 inequality_constraint_lb.pop(i)
                 inequality_constraint_ub.pop(i)
-        # constraints = (LinearConstraint(manual_constraints[0],      #A in Ax=b
-        #                                 lb = manual_constraints[1], #Lower bound
-        #                                 ub = manual_constraints[2]  #Upper Bound
-        #                                ),
-        #                LinearConstraint(np.ones(m), lb=1, ub=1), #Sum of weights to 1
-        #                LinearConstraint(mu, lb=mu_0, ub=np.inf)
-        #               )
+                
         constraints = (LinearConstraint(equality_constraint_matrix,  #A in Ax=b
                                         lb = equality_constraint_lb, #Lower bound
                                         ub = equality_constraint_ub  #Upper Bound
@@ -135,7 +131,7 @@ def optimizer(scenarios, probabilities, mu_0, total = 1, manual_constraints = No
         else:
             bounds = Bounds(lb = np.zeros(m), ub = np.ones(m) * np.inf)
             
-        constraints = (LinearConstraint(np.ones(m), lb=1, ub=1), #Sum of weights to total
+        constraints = (LinearConstraint(np.ones(m), lb=1, ub=1), #Sum of weights to 1
                        LinearConstraint(mu, lb=mu_0, ub=np.inf) #Greater or equal to a certain return level
                 )
 
@@ -143,13 +139,13 @@ def optimizer(scenarios, probabilities, mu_0, total = 1, manual_constraints = No
     disp = True if verbose == 2 else False
 
     res = minimize(objective_function,
-                   method = 'SLSQP',
+                   #method = 'SLSQP',
                    jac=jac,
                    x0 = x0,
                    bounds = bounds,
                    constraints = constraints,
-                   tol=0.00001,
-                   options = {"disp": disp})
+                   tol=0.01,
+                   options = {"disp": disp, 'maxiter': 10**6})
     if verbose:
         print(f"The optimization was succesful: {res.success}")
         if not res.success:
@@ -165,7 +161,7 @@ def mean_and_var(scenarios, probabilities):
     --------------------
     ### Input arguments:
         scenarios: Matrix
-            A (S x ) matrix of the optimizable portfolio items
+            A (S x N) matrix of the optimizable portfolio items
         probabilities: Array of floats <= 1
             A (S x 1) vector of prior probabilities
     --------------------
@@ -238,18 +234,6 @@ def vizualization(covar,
             frontier_mu = np.append(frontier_mu, mu @ opt.x)
             frontier_var = np.append( frontier_var, opt.x.T @ covar @ opt.x)
 
-    # fig, ax = plt.subplots()
-    # ax.scatter(port_vol, port_returns)
-    # ax.scatter(np.diag(covar), mu, color = "yellow");
-    # for i, txt in enumerate(scenarios.columns):
-    #     ax.annotate(txt, (np.diag(covar)[i], mu[i]))
-    # ax.scatter(optimal.T @ covar @ optimal,mu @ optimal, color='red');
-    # ax.annotate("Optimal", (optimal.T @ covar @ optimal,mu @ optimal));
-    # if frontier:
-    #     ax.plot(frontier_var, frontier_mu, color='red');
-    # plt.show();
-
-
 
     generated_df = pd.DataFrame(list(zip(port_vol,
                                     port_returns)),
@@ -287,11 +271,11 @@ def vizualization(covar,
                         y = "Returns"),
                     color = "#A61C3C"
                     )
-        + geom_point(mapping = aes(x = optimal.T @ covar @ optimal / total**2, y=mu @ optimal),
+        + geom_point(mapping = aes(x = optimal.T @ covar @ optimal /total**2, y=mu @ optimal/total),
                      color = "#242331",
                      #shape=13
                      )
-        + geom_text(mapping = aes(x = optimal.T @ covar @ optimal / total**2, y=mu @ optimal),
+        + geom_text(mapping = aes(x = optimal.T @ covar @ optimal/total**2, y=mu @ optimal/total),
                      label = "Optimal",
                      #nudge_y = -0.02,
                      #nudge_x = 0.5,
