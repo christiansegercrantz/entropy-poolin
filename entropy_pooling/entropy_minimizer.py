@@ -2,7 +2,7 @@
 import numpy as np
 import scipy.optimize as opt
 
-def full_confidence_posterior(p, A, b, C, d):
+def full_confidence_posterior(p, A, b, C, d, verbose = False):
     """Computes the full-condifence posterior distribution by finding the constrained entropy-minimizing set of variables ('posterior distribution')
     -------------------
     ### Input arguments:
@@ -16,6 +16,8 @@ def full_confidence_posterior(p, A, b, C, d):
             the (K x S) matrix used to express the constraints Cx <= d
         d: numpy.ndarray
             the K-element lower bound vector for inequality constraints
+        verbose: Boolean, Default False
+            weather to print the result or not
     -------------------
     ### Returns:
         posterior: numpy.ndarray
@@ -74,9 +76,10 @@ def full_confidence_posterior(p, A, b, C, d):
 
     bounds = (((0, None), ) * dim_d) + (((None, None), ) * dim_b) # ineq Lagr multipliers nonneg, eq multipliers unrestricted
     res = opt.minimize(fun = dual, x0 = np.ones(dim_d + dim_b), method = 'TNC', jac = Jac, bounds = bounds)
-    print("Results")
-    print("Optimal dual variable values: ", res.x)
-    print("Jacobian matrix at optimum", Jac(res.x))
+    if verbose:
+        print("Results")
+        print("Optimal dual variable values: ", res.x)
+        print("Jacobian matrix at optimum", Jac(res.x))
     l_opt, v_opt = res.x[:dim_d], res.x[dim_d:]
 
     # posterior = p * np.exp(-1 - np.dot(np.transpose(C), l_opt) - np.dot(np.transpose(A), v_opt))
