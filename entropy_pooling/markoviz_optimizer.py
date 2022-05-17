@@ -50,7 +50,7 @@ def asset_scenarios(factor_scenarios, asset_deltas, asset_names):
     asset_scenarios.columns = asset_names
     return asset_scenarios
 
-def optimizer(scenarios, probabilities, mu_0, manual_constraints = None, allow_shorting = False, visualize = False, verbose = 0):
+def optimizer(scenarios, probabilities, mu_0, total = 1, manual_constraints = None, allow_shorting = False, visualize = False, verbose = 0):
     """Optimizes the weights put on each item the portfolio. This is done by minimizing the volatility of the portfolio at a given return procentage. Also visualized the markoviz model if requested.
     --------------------
     ### Input arguments:
@@ -60,6 +60,8 @@ def optimizer(scenarios, probabilities, mu_0, manual_constraints = None, allow_s
             A (S x 1) vector of prior probabilities
         mu_0: Float
             The return to optimize for, given in decimal as 50% = 0.5
+        total: Float | Default = 1.0
+            Total usable funds for the optimization
         manual_constraints: Tupple(Matrix,Array[Float],Array[Float]) | None, Default: None
             A tuple to define the constraints. If not given, we assume only that the sum of all assets is 1 and the assets are bound to [0, inf( (subject to allow_shorting)
             The first element ought to be a (#Additional_constriants x #Assets matrix) defining the additional constraint. The values are to be floats in the range [0,100]
@@ -94,11 +96,36 @@ def optimizer(scenarios, probabilities, mu_0, manual_constraints = None, allow_s
         return  x.T @ covar @ x
 
     if manual_constraints is not None:
-        constraints = (LinearConstraint(manual_constraints[0],      #A in Ax=b
-                                        lb = manual_constraints[1], #Lower bound
-                                        ub = manual_constraints[2]  #Upper Bound
+        equality_constraint_matrix = manual_constraints[0].copy(deep=True)
+        inequality_constraint_matrix = manual_constraints[0].copy(deep=True)
+        equality_constraint_lb = manual_constraints[1].copy(deep=True)
+        inequality_constraint_lb = manual_constraints[1].copy(deep=True)
+        equality_constraint_ub = manual_constraints[2].copy(deep=True)
+        inequality_constraint_ub = manual_constraints[2].copy(deep=True)
+        for i, _ in enumerate(manual_constraints[1]): 
+            if (manual_constraints[1][i] != manual_constraints[2][i]):
+                equality_constraint_matrix.drop(index = i, inplace=True) 
+                equality_constraint_lb.pop(i)
+                equality_constraint_ub.pop(i)
+            else:
+                inequality_constraint_matrix.drop(index = i, inplace=True)
+                inequality_constraint_lb.pop(i)
+                inequality_constraint_ub.pop(i)
+        # constraints = (LinearConstraint(manual_constraints[0],      #A in Ax=b
+        #                                 lb = manual_constraints[1], #Lower bound
+        #                                 ub = manual_constraints[2]  #Upper Bound
+        #                                ),
+        #                LinearConstraint(np.ones(m), lb=1, ub=1), #Sum of weights to 1
+        #                LinearConstraint(mu, lb=mu_0, ub=np.inf)
+        #               )
+        constraints = (LinearConstraint(equality_constraint_matrix,  #A in Ax=b
+                                        lb = equality_constraint_lb, #Lower bound
+                                        ub = equality_constraint_ub  #Upper Bound
                                        ),
-                       LinearConstraint(np.ones(m), lb=1, ub=1), #Sum of weights to 1
+                       LinearConstraint(inequality_constraint_matrix,  #A in lb=<Ax=<ub
+                                        lb = inequality_constraint_lb, #Lower bound
+                                        ub = inequality_constraint_ub  #Upper Bound
+                                       ),
                        LinearConstraint(mu, lb=mu_0, ub=np.inf)
                       )
         bounds = None
@@ -129,7 +156,7 @@ def optimizer(scenarios, probabilities, mu_0, manual_constraints = None, allow_s
             print(f"The optimization was terminated due to: \n{res.message}")
 
     if visualize:
-        vizualization(covar, mu, optimal = res.x, frontier=True, scenarios = scenarios, probabilities = probabilities)
+        vizualization(covar, mu, total, optimal = res.x, frontier=True, scenarios = scenarios, probabilities = probabilities)
     return res
 
 
@@ -157,6 +184,7 @@ def mean_and_var(scenarios, probabilities):
 
 def vizualization(covar,
                   mu,
+                  total = 1.0,
                   generated_points = 50000,
                   frontier = True,
                   optimal = None,
@@ -170,6 +198,8 @@ def vizualization(covar,
             The covariance of the portfolio items
         mu: (N x 1) vector
             The mean of each portfolio item
+        total: Float | Default = 1.0
+            Total usable funds for the optimization
         generated_points: Int, Default:50000,
             The amount of points generated in the cloud.
         frontier: Boolean, Default: 'True'
@@ -257,11 +287,11 @@ def vizualization(covar,
                         y = "Returns"),
                     color = "#A61C3C"
                     )
-        + geom_point(mapping = aes(x = optimal.T @ covar @ optimal, y=mu @ optimal),
+        + geom_point(mapping = aes(x = optimal.T @ covar @ optimal / total**2, y=mu @ optimal),
                      color = "#242331",
                      #shape=13
                      )
-        + geom_text(mapping = aes(x = optimal.T @ covar @ optimal, y=mu @ optimal),
+        + geom_text(mapping = aes(x = optimal.T @ covar @ optimal / total**2, y=mu @ optimal),
                      label = "Optimal",
                      #nudge_y = -0.02,
                      #nudge_x = 0.5,
