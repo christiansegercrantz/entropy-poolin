@@ -238,18 +238,6 @@ def vizualization(covar,
             frontier_mu = np.append(frontier_mu, mu @ opt.x)
             frontier_var = np.append( frontier_var, opt.x.T @ covar @ opt.x)
 
-    # fig, ax = plt.subplots()
-    # ax.scatter(port_vol, port_returns)
-    # ax.scatter(np.diag(covar), mu, color = "yellow");
-    # for i, txt in enumerate(scenarios.columns):
-    #     ax.annotate(txt, (np.diag(covar)[i], mu[i]))
-    # ax.scatter(optimal.T @ covar @ optimal,mu @ optimal, color='red');
-    # ax.annotate("Optimal", (optimal.T @ covar @ optimal,mu @ optimal));
-    # if frontier:
-    #     ax.plot(frontier_var, frontier_mu, color='red');
-    # plt.show();
-
-
 
     generated_df = pd.DataFrame(list(zip(port_vol,
                                     port_returns)),
