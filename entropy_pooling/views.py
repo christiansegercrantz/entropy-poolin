@@ -102,7 +102,8 @@ def cov_vector(data, posterior_mean, name1, name2):
 def returns_to_monthly(r):
     #print(r)
     #print(type(r))
-    return (np.abs(r+1))**(1/12)-1
+    #return (np.abs(r+1))**(1/12)-1
+    return r / 12
 
 def append_mean(A, b, C, d, data, df, ind, rf):
     sign = 1 - 2*('geq' in rf) # Either +1 or -1
