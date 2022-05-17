@@ -30,7 +30,7 @@ cols = {'type'      : '* View on',
 # load() IS THE MAIN FUNCTION
 # It returns a tuple (A,b,C,d), which contain the constraints Ax = b and Cx <= d.
 
-def load(data = pd.read_excel("data/data.xlsx"), views_subsheet_name = 0, views_sheet_name = "views.xlsx"): # load_debug, but output is supressed
+def load(data = pd.read_excel("data/data.xlsx"), views_subsheet_name = 0, views_sheet_name = "data/views.xlsx"): # load_debug, but output is supressed
     with io.capture_output() as captured:
         return load_debug(data, views_subsheet_name, views_sheet_name)
 
