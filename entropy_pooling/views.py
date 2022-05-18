@@ -103,7 +103,8 @@ def returns_to_monthly(r):
     #print(r)
     #print(type(r))
     #return (np.abs(r+1))**(1/12)-1
-    return r / 12
+    #return r / 12
+    return r
 
 def append_mean(A, b, C, d, data, df, ind, rf):
     sign = 1 - 2*('geq' in rf) # Either +1 or -1
@@ -166,11 +167,11 @@ def append_var(A, b, C, d, data, posterior_mean, df, ind, rf):
         #row = row - cov_vector(data, posterior_mean, df.iloc[ind]['asset3'], df.iloc[ind]['asset3'])
     if ('leq' in rf) or ('geq' in rf):
         C_new = np.vstack([C, sign*row])
-        d_new = np.vstack([d, sign*df.iloc[ind]['parameter']**2 / 12]) # 1/12 to annualize volatility
+        d_new = np.vstack([d, sign*df.iloc[ind]['parameter']**2]) #/ 12]) # 1/12 to annualize volatility
         return (A, b, C_new, d_new)
     else:
         A_new = np.vstack([A, sign*row])
-        b_new = np.vstack([b, sign*df.iloc[ind]['parameter']**2 / 12]) # 1/12 to annualize volatility
+        b_new = np.vstack([b, sign*df.iloc[ind]['parameter']**2]) # / 12]) # 1/12 to annualize volatility
         return (A_new, b_new, C, d)
 
 # Function that reads the format of the row (e.g. non-relative mean equality)
@@ -239,7 +240,7 @@ def post_const_append(A, b, C, d, data, df, ind, rf, type):
     if 'rel' in rf:
         a[0][data.columns.get_loc(df.iloc[ind]['asset3'])] = -sign
     if type == 'var':
-        b_new = sign*df.iloc[ind]['parameter']**2 / 12 # really monthly variance
+        b_new = sign*df.iloc[ind]['parameter']**2 # / 12 # really monthly variance
     elif type == 'mean':
         b_new = sign*returns_to_monthly(df.iloc[ind]['parameter']) # monthly mean
     if 'geq' in rf or 'leq' in rf:
