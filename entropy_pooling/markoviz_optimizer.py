@@ -134,7 +134,7 @@ def optimizer(scenarios, probabilities, mu_0, manual_constraints, visualize = Fa
                    x0 = x0,
                    constraints = constraints,
                    tol=0.01,
-                   options = {"disp": disp, 'maxiter': 10**6})
+                   options = {"disp": disp, 'maxiter': 10**4})
     if verbose:
         print(f"The optimization was succesful: {res.success}")
         if not res.success:
