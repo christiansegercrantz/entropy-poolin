@@ -50,7 +50,7 @@ def asset_scenarios(factor_scenarios, asset_deltas, asset_names):
     asset_scenarios.columns = asset_names
     return asset_scenarios
 
-def optimizer(scenarios, probabilities, mu_0, total = 1, manual_constraints = None, allow_shorting = False, visualize = False, verbose = 0):
+def optimizer(scenarios, probabilities, mu_0, manual_constraints, visualize = False, verbose = 0):
     """Optimizes the weights put on each item the portfolio. This is done by minimizing the volatility of the portfolio at a given return procentage. Also visualized the markoviz model if requested.
     --------------------
     ### Input arguments:
@@ -59,10 +59,10 @@ def optimizer(scenarios, probabilities, mu_0, total = 1, manual_constraints = No
         probabilities: Array of floats <= 1
             A (S x 1) vector of prior probabilities
         mu_0: Float
-            The return to optimize for, given in decimal as 50% = 0.5
+            The return to optimize for given in euros
         total: Float | Default = 1.0
             Total usable funds for the optimization
-        manual_constraints: Tupple(Matrix,Array[Float],Array[Float]) | None, Default: None
+        manual_constraints: Tupple(Matrix,Array[Float],Array[Float])
             A tuple to define the constraints. If not given, we assume only that the sum of all assets is 1 and the assets are bound to [0, inf( (subject to allow_shorting)
             The first element ought to be a (#Additional_constriants x #Assets matrix) defining the additional constraint. The values are to be floats in the range [0,100]
             The second element ought to be a (#Additional_constriants x 1) vector defining the lower bounds of the constraints. The values are to be floats in the range [0,100]
@@ -86,63 +86,52 @@ def optimizer(scenarios, probabilities, mu_0, total = 1, manual_constraints = No
     #Get the mean vector and covariance matrix
     mu, covar = mean_and_var(scenarios, probabilities)
 
-    m, n = covar.shape
+    m, _ = covar.shape
     x0 = np.ones(m)/m
 
     def jac(x):
         return 2 * covar @ x
 
     def objective_function(x):
-        return  x.T @ covar @ x
+        return  np.sqrt(x.T @ covar @ x)
 
-    if manual_constraints is not None:
-        # We split the constraints into equality and inequality constraints for efficient optimization.
-        # Unclear if this is a speed up or not for the portfolio sizes in question
-        equality_constraint_matrix = manual_constraints[0].copy(deep=True)
-        inequality_constraint_matrix = manual_constraints[0].copy(deep=True)
-        equality_constraint_lb = manual_constraints[1].copy(deep=True)
-        inequality_constraint_lb = manual_constraints[1].copy(deep=True)
-        equality_constraint_ub = manual_constraints[2].copy(deep=True)
-        inequality_constraint_ub = manual_constraints[2].copy(deep=True)
-        for i, _ in enumerate(manual_constraints[1]): 
-            if (manual_constraints[1][i] != manual_constraints[2][i]):
-                equality_constraint_matrix.drop(index = i, inplace=True) 
-                equality_constraint_lb.pop(i)
-                equality_constraint_ub.pop(i)
-            else:
-                inequality_constraint_matrix.drop(index = i, inplace=True)
-                inequality_constraint_lb.pop(i)
-                inequality_constraint_ub.pop(i)
-                
-        constraints = (LinearConstraint(equality_constraint_matrix,  #A in Ax=b
-                                        lb = equality_constraint_lb, #Lower bound
-                                        ub = equality_constraint_ub  #Upper Bound
-                                       ),
-                       LinearConstraint(inequality_constraint_matrix,  #A in lb=<Ax=<ub
-                                        lb = inequality_constraint_lb, #Lower bound
-                                        ub = inequality_constraint_ub  #Upper Bound
-                                       ),
-                       LinearConstraint(mu, lb=mu_0, ub=np.inf)
-                      )
-        bounds = None
-    else:
-        if allow_shorting:
-            bounds = Bounds(lb = -np.ones(m)*np.inf, ub = np.ones(m) * np.inf)
+    # We split the constraints into equality and inequality constraints for efficient optimization.
+    # Unclear if this is a speed up or not for the portfolio sizes in question
+    equality_constraint_matrix = manual_constraints[0].copy(deep=True)
+    inequality_constraint_matrix = manual_constraints[0].copy(deep=True)
+    equality_constraint_lb = manual_constraints[1].copy(deep=True)
+    inequality_constraint_lb = manual_constraints[1].copy(deep=True)
+    equality_constraint_ub = manual_constraints[2].copy(deep=True)
+    inequality_constraint_ub = manual_constraints[2].copy(deep=True)
+    for i, _ in enumerate(manual_constraints[1]): 
+        if (manual_constraints[1][i] != manual_constraints[2][i]):
+            equality_constraint_matrix.drop(index = i, inplace=True) 
+            equality_constraint_lb.pop(i)
+            equality_constraint_ub.pop(i)
         else:
-            bounds = Bounds(lb = np.zeros(m), ub = np.ones(m) * np.inf)
+            inequality_constraint_matrix.drop(index = i, inplace=True)
+            inequality_constraint_lb.pop(i)
+            inequality_constraint_ub.pop(i)
             
-        constraints = (LinearConstraint(np.ones(m), lb=1, ub=1), #Sum of weights to 1
-                       LinearConstraint(mu, lb=mu_0, ub=np.inf) #Greater or equal to a certain return level
-                )
+    constraints = (LinearConstraint(equality_constraint_matrix,  #A in Ax=b
+                                    lb = equality_constraint_lb, #Lower bound
+                                    ub = equality_constraint_ub  #Upper Bound
+                                    ),
+                    LinearConstraint(inequality_constraint_matrix,  #A in lb=<Ax=<ub
+                                    lb = inequality_constraint_lb, #Lower bound
+                                    ub = inequality_constraint_ub  #Upper Bound
+                                    ),
+                    LinearConstraint(mu, lb=mu_0, ub=np.inf)
+                    )
+
 
 
     disp = True if verbose == 2 else False
 
     res = minimize(objective_function,
-                   #method = 'SLSQP',
+                   #method = 'SLSQP', #Change to L-BFGS-B, 
                    jac=jac,
                    x0 = x0,
-                   bounds = bounds,
                    constraints = constraints,
                    tol=0.01,
                    options = {"disp": disp, 'maxiter': 10**6})
@@ -152,7 +141,7 @@ def optimizer(scenarios, probabilities, mu_0, total = 1, manual_constraints = No
             print(f"The optimization was terminated due to: \n{res.message}")
 
     if visualize:
-        vizualization(covar, mu, total, optimal = res.x, frontier=True, scenarios = scenarios, probabilities = probabilities)
+        vizualization(covar, mu, optimal = res.x, manual_constraints = manual_constraints, frontier=True, scenarios = scenarios, probabilities = probabilities)
     return res
 
 
@@ -172,20 +161,19 @@ def mean_and_var(scenarios, probabilities):
         covar: (N x N) matrix
             The covariance of the portfolio items"""
 
-    m,n = scenarios.shape
-    probabilities_reshaped = np.asarray(probabilities).reshape(m,)
+    probabilities_reshaped = np.asarray(probabilities).reshape(-1,)
     mu = np.average(scenarios, axis=0, weights = probabilities_reshaped)
     covar = np.cov(scenarios, rowvar = False, aweights = probabilities_reshaped)
     return mu, covar
 
 def vizualization(covar,
                   mu,
-                  total = 1.0,
                   generated_points = 50000,
                   frontier = True,
                   optimal = None,
                   scenarios = None,
                   probabilities = None,
+                  manual_constraints = None,
                   mu_0 = None):
     """ Visualizes the markoviz model, the original portfolio items and the optimal points. Optimally calculates the optimal results and plots the efficient frontier
     --------------------
@@ -214,7 +202,7 @@ def vizualization(covar,
         assert(scenarios is not None), "You have to give in scenarios in order to find the optimal using the method"
         assert(probabilities is not None), "You have to give in weights in order to find the optimal using the method"
         assert(mu_0 is not None), "You have to give in the return lower bound mu_0 to find the optimal using the method"
-        optimal = optimizer(scenarios, probabilities, mu_0 = mu_0, disp = False, vizualization = False)
+        optimal = optimizer(scenarios, probabilities, manual_constraints = manual_constraints, mu_0 = mu_0, disp = False, vizualization = False)
     m,n = covar.shape
     port_returns = np.array([])
     port_vol = np.array([])
@@ -227,10 +215,11 @@ def vizualization(covar,
     if frontier:
         assert(scenarios is not None), "You have to give in scenarios in order to plot the frontier"
         assert(probabilities is not None), "You have to give in weights in order to to plot the frontier"
+        assert(manual_constraints is not None), "You have to give menual constraints in order to plot the frontier"
         frontier_mu = np.array([])
         frontier_var = np.array([])
         for j in np.linspace(0, np.max(mu), 100):
-            opt = optimizer(scenarios, probabilities, mu_0 = j, verbose = 0)
+            opt = optimizer(scenarios, probabilities, manual_constraints = manual_constraints, mu_0 = j, verbose = 0)
             frontier_mu = np.append(frontier_mu, mu @ opt.x)
             frontier_var = np.append( frontier_var, opt.x.T @ covar @ opt.x)
 
@@ -239,13 +228,14 @@ def vizualization(covar,
                                     port_returns)),
                         columns = ["Volatility",
                                    "Returns"])
-    frontier_df = pd.DataFrame(list(zip(frontier_var,
-                                    frontier_mu)),
-                        columns = ["Volatility",
-                                   "Returns"])
+    if frontier:
+        frontier_df = pd.DataFrame(list(zip(frontier_var,
+                                        frontier_mu)),
+                            columns = ["Volatility",
+                                    "Returns"])
     #df = pd.DataFrame(list(zip(frontier_var,frontier_mu)),
     #                    columns = ["Volatility", "Returns"])
-    (ggplot()
+    plot = (ggplot()
         + theme(legend_title = element_text(
                 family = "Calibri",
                 colour = "brown",
@@ -266,16 +256,11 @@ def vizualization(covar,
                         y = "Returns"),
                      color = "#7D8CC4"
                     )
-        + geom_line(data = frontier_df,
-                    mapping= aes(x = "Volatility",
-                        y = "Returns"),
-                    color = "#A61C3C"
-                    )
-        + geom_point(mapping = aes(x = optimal.T @ covar @ optimal /total**2, y=mu @ optimal/total),
+        + geom_point(mapping = aes(x = optimal.T @ covar @ optimal , y=mu @ optimal),
                      color = "#242331",
                      #shape=13
                      )
-        + geom_text(mapping = aes(x = optimal.T @ covar @ optimal/total**2, y=mu @ optimal/total),
+        + geom_text(mapping = aes(x = optimal.T @ covar @ optimal, y=mu @ optimal),
                      label = "Optimal",
                      #nudge_y = -0.02,
                      #nudge_x = 0.5,
@@ -292,4 +277,11 @@ def vizualization(covar,
                      position=position_jitter()
                      )
 
-    ).draw()
+    )
+    if frontier:
+        plot += geom_line(data = frontier_df,
+                    mapping= aes(x = "Volatility",
+                        y = "Returns"),
+                    color = "#A61C3C"
+                    )
+    plot.draw()
