@@ -16,8 +16,10 @@ def load_asset_deltas(filename, sheet_name = 0):
             If the delta matrix is given inside a bigger Excel workbook, then extract the right sheet
     --------------------
     ### Returns:
-        deltas: The (F x N) asset sensitivity ('delta') matrix (in numpy format, without row or column names)
-        asset_names: List of the names of the assets included in the deltas matrix as indexers
+        deltas: numpy.ndarray
+            The (F x N) asset sensitivity ('delta') matrix (in numpy format, without row or column names)
+        asset_names: list<String>
+            List of the names of the assets included in the deltas matrix as indexers
     """
 
     deltas = pd.read_excel(filename, sheet_name, header = 0, index_col = 0)
@@ -35,13 +37,13 @@ def asset_scenarios(factor_scenarios, asset_deltas, asset_names):
     --------------------
     ### Input arguments:
         factor_scenarios: Matrix
-        A (S x F) matrix of factor return scenarios
+            A (S x F) matrix of factor return scenarios
         asset_deltas: Matrix
-        A (F x N) matrix of asset sensitivities ('deltas') to changes in factors
+            A (F x N) matrix of asset sensitivities ('deltas') to changes in factors
     --------------------
     ### Returns:
         asset_scenarios:
-        A (S x N) matrix containing the asset return scenarios
+            A (S x N) matrix containing the asset return scenarios
     """
 
     # Check that the F dimension matches
@@ -49,6 +51,33 @@ def asset_scenarios(factor_scenarios, asset_deltas, asset_names):
     asset_scenarios = factor_scenarios @ asset_deltas
     asset_scenarios.columns = asset_names
     return asset_scenarios
+
+def load_portfolio_constraints(filename, sheet_name = 0):
+    """Uploads the data containing the portfolio constraints used in Markowitz optimization.
+    The constraints must be given in format A|lb|ub, the user can distinguish between the components
+    by leaving empty columns between the components in the excel sheet.
+    --------------------
+    ### Input arguments:
+        filename: String
+            The name of the (Excel) file that contains the constraints
+        sheet_name (optional): String
+            The name of the sheet where the constraints are written
+    --------------------
+    ### Returns:
+        A: numpy.ndarray
+            The matrix containing all the left-hand coefficients of the constraint equations
+        lb: numpy.ndarray
+            The vector containing the right-hand lower bounds of the constraint inequations Ax >= lb
+        ub: numpy.ndarray
+            The vector containing the right-hand upper bounds of the constraint inequations Ax <= ub
+    """
+
+    constrs = pd.read_exel(filename, sheet_name, header = 0).dropna(axis = 0, how = 'all')
+    A = constrs.iloc[:,:-2]
+    lb = constrs.iloc[:,-2]
+    ub = constrs.iloc[:,-1]
+
+    return A, lb, ub
 
 def optimizer(scenarios, probabilities, mu_0, manual_constraints, visualize = False, verbose = 0):
     """Optimizes the weights put on each item the portfolio. This is done by minimizing the volatility of the portfolio at a given return procentage. Also visualized the markoviz model if requested.
@@ -103,16 +132,16 @@ def optimizer(scenarios, probabilities, mu_0, manual_constraints, visualize = Fa
     inequality_constraint_lb = manual_constraints[1].copy(deep=True)
     equality_constraint_ub = manual_constraints[2].copy(deep=True)
     inequality_constraint_ub = manual_constraints[2].copy(deep=True)
-    for i, _ in enumerate(manual_constraints[1]): 
+    for i, _ in enumerate(manual_constraints[1]):
         if (manual_constraints[1][i] != manual_constraints[2][i]):
-            equality_constraint_matrix.drop(index = i, inplace=True) 
+            equality_constraint_matrix.drop(index = i, inplace=True)
             equality_constraint_lb.pop(i)
             equality_constraint_ub.pop(i)
         else:
             inequality_constraint_matrix.drop(index = i, inplace=True)
             inequality_constraint_lb.pop(i)
             inequality_constraint_ub.pop(i)
-            
+
     constraints = (LinearConstraint(equality_constraint_matrix,  #A in Ax=b
                                     lb = equality_constraint_lb, #Lower bound
                                     ub = equality_constraint_ub  #Upper Bound
@@ -129,7 +158,7 @@ def optimizer(scenarios, probabilities, mu_0, manual_constraints, visualize = Fa
     disp = True if verbose == 2 else False
 
     res = minimize(objective_function,
-                   #method = 'SLSQP', #Change to L-BFGS-B, 
+                   #method = 'SLSQP', #Change to L-BFGS-B,
                    jac=jac,
                    x0 = x0,
                    constraints = constraints,
