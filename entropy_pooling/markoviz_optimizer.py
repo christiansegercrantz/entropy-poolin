@@ -64,7 +64,7 @@ def load_portfolio_constraints(filename, sheet_name = 0):
             The name of the sheet where the constraints are written
     --------------------
     ### Returns:
-        A: numpy.ndarray
+        A:  numpy.ndarray
             The matrix containing all the left-hand coefficients of the constraint equations
         lb: numpy.ndarray
             The vector containing the right-hand lower bounds of the constraint inequations Ax >= lb
@@ -72,8 +72,8 @@ def load_portfolio_constraints(filename, sheet_name = 0):
             The vector containing the right-hand upper bounds of the constraint inequations Ax <= ub
     """
 
-    constrs = pd.read_excel(filename, sheet_name, header = 0).dropna(axis = 0, how = 'all')
-    A = constrs.iloc[:,:-2]
+    constrs = pd.read_excel(filename, sheet_name, header = 0).dropna(axis = 1, how = 'all')
+    A  = constrs.iloc[:,:-2]
     lb = constrs.iloc[:,-2]
     ub = constrs.iloc[:,-1]
 
