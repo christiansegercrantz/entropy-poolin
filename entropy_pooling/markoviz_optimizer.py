@@ -72,7 +72,7 @@ def load_portfolio_constraints(filename, sheet_name = 0):
             The vector containing the right-hand upper bounds of the constraint inequations Ax <= ub
     """
 
-    constrs = pd.read_exel(filename, sheet_name, header = 0).dropna(axis = 0, how = 'all')
+    constrs = pd.read_excel(filename, sheet_name, header = 0).dropna(axis = 0, how = 'all')
     A = constrs.iloc[:,:-2]
     lb = constrs.iloc[:,-2]
     ub = constrs.iloc[:,-1]
