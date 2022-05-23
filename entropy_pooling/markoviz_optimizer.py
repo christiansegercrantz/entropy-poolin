@@ -21,7 +21,7 @@ def load_factor_scenarios(filename, sheet_name = 0, scale_by_100 = False):
             The vector of length S containing the scenario prior probabilities.
     """
 
-    data = pd.read_excel(filename, sheet_name).dropna(axis = 1, how = 'all')
+    data = pd.read_excel(filename, sheet_name, header = 0).dropna(axis = 1, how = 'all')
     scenarios = data.drop(columns = ['Weight'])
     if scale_by_100:
         scenarios /= 100
