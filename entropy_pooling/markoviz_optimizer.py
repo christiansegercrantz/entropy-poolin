@@ -3,12 +3,38 @@ import pandas as pd
 from scipy.optimize import minimize, LinearConstraint, Bounds
 from plotnine import ggplot, geom_point, aes, geom_line, labs, geom_text, position_jitter, theme, element_text, theme_linedraw, element_line, element_rect, scale_y_continuous, scale_x_continuous
 
+def load_factor_scenarios(filename, sheet_name = 0, scale_by_100 = False):
+    """Uploads the factor scenario data and the prior scenario distribution.
+    --------------------
+    ### Input arguments:
+        filenme: String
+            The name of the Excel file that contains the factor scenario matrix and prior distribution (column 'Weight').
+        sheet_name (optional): String
+            User can specify the sheet name of the data in the Excel file.
+        scale_by_100 (optional): Boolean
+            Tells whether to divide the factor return data by 100 (1% -> 0.01) or not. Default is False
+    --------------------
+    ### Returns:
+        scenarios: pd.DataFrame
+            The (S x F) sized factor scenario data (S = number of scenarios, F = number of factors).
+        prior: np.Array
+            The vector of length S containing the scenario prior probabilities.
+    """
+
+    data = pd.read_excel(filename, sheet_name).dropna(axis = 1, how = 'all')
+    scenarios = data.drop(columns = ['Weight'])
+    if scale_by_100:
+        scenarios /= 100
+    prior = data['Weight'].to_numpy()
+
+    return scenarios, prior
+
 def load_asset_deltas(filename, sheet_name = 0):
     """Uploads the data containing the asset delta matrix from the given Excel file.
     --------------------
     ### Input arguments:
         filename: String
-            The name of the excel file that contains the (F x N) matrix of the factor sensitivites
+            The name of the Excel file that contains the (F x N) matrix of the factor sensitivites
             of the optimizable assets. (N = number of assets, F = number of factors)
             The data should contain a header (with factor names) and the first row
             contains the indexes (asset names)
