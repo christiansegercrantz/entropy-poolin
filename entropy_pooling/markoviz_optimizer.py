@@ -105,7 +105,8 @@ def load_portfolio_constraints(filename, sheet_name = 0):
 
     return A, lb, ub
 
-def optimizer(scenarios, probabilities, mu_0, manual_constraints, visualize = False, verbose = 0):
+def optimizer(scenarios, probabilities, mu_0, manual_constraints, visualize = False, leave_out = None, verbose = 0):
+
     """Optimizes the weights put on each item the portfolio. This is done by minimizing the volatility of the portfolio at a given return procentage. Also visualized the markoviz model if requested.
     --------------------
     ### Input arguments:
@@ -172,7 +173,7 @@ def optimizer(scenarios, probabilities, mu_0, manual_constraints, visualize = Fa
                                     lb = equality_constraint_lb, #Lower bound
                                     ub = equality_constraint_ub  #Upper Bound
                                     ),
-                    LinearConstraint(inequality_constraint_matrix,  #A in lb=<Ax=<ub
+                    LinearConstraint(inequality_constraint_matrix, #A in lb=<Ax=<ub
                                     lb = inequality_constraint_lb, #Lower bound
                                     ub = inequality_constraint_ub  #Upper Bound
                                     ),
@@ -196,7 +197,7 @@ def optimizer(scenarios, probabilities, mu_0, manual_constraints, visualize = Fa
             print(f"The optimization was terminated due to: \n{res.message}")
 
     if visualize:
-        vizualization(covar, mu, optimal = res.x, manual_constraints = manual_constraints, frontier=True, scenarios = scenarios, probabilities = probabilities)
+        vizualization(covar, mu, leave_out, optimal = res.x, manual_constraints = manual_constraints, frontier=True, scenarios = scenarios, probabilities = probabilities)
     return res
 
 
@@ -224,6 +225,7 @@ def mean_and_var(scenarios, probabilities):
 def vizualization(covar,
                   mu,
                   generated_points = 50000,
+                  leave_out = None, 
                   frontier = True,
                   optimal = None,
                   scenarios = None,
@@ -258,6 +260,11 @@ def vizualization(covar,
         assert(probabilities is not None), "You have to give in weights in order to find the optimal using the method"
         assert(mu_0 is not None), "You have to give in the return lower bound mu_0 to find the optimal using the method"
         optimal = optimizer(scenarios, probabilities, manual_constraints = manual_constraints, mu_0 = mu_0, disp = False, vizualization = False)
+    if leave_out is not None:
+        for i in leave_out:
+            covar.pop(i)
+            mu.pop(i)
+            scenarios.drop(columns=[i], inplace=True)
     m,n = covar.shape
     port_returns = np.array([])
     port_vol = np.array([])
