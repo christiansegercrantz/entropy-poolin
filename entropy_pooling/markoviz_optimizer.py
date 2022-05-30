@@ -106,7 +106,7 @@ def load_portfolio_constraints(filename, sheet_name = 0):
     return A, lb, ub
 
 def optimizer(scenarios, probabilities, mu_0, manual_constraints, visualize = False, leave_out = None, verbose = 0):
-
+  
     """Optimizes the weights put on each item the portfolio. This is done by minimizing the volatility of the portfolio at a given return procentage. Also visualized the markoviz model if requested.
     --------------------
     ### Input arguments:
@@ -261,14 +261,14 @@ def vizualization(covar,
         assert(mu_0 is not None), "You have to give in the return lower bound mu_0 to find the optimal using the method"
         optimal = optimizer(scenarios, probabilities, manual_constraints = manual_constraints, mu_0 = mu_0, disp = False, vizualization = False)
     if leave_out is not None:
-        for i in leave_out:
-            covar.pop(i)
-            mu.pop(i)
-            scenarios.drop(columns=[i], inplace=True)
+        covar = np.delete(covar,leave_out, axis = 1)
+        covar = np.delete(covar,leave_out, axis = 0)
+        mu = np.delete(mu,leave_out)
+        scenarios.drop(columns=scenarios.columns[leave_out], inplace=True)
     m,n = covar.shape
     port_returns = np.array([])
     port_vol = np.array([])
-    for i in range(0, generated_points):
+    for _ in range(0, generated_points): #Could probably be vectorized
         y = np.random.rand(m,1)**10
         y = y/np.sum(y)
         port_returns = np.append(port_returns, mu @ y)
