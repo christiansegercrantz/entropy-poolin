@@ -105,7 +105,7 @@ def load_portfolio_constraints(filename, sheet_name = 0):
 
     return A, lb, ub
 
-def optimizer(scenarios, probabilities, mu_0, manual_constraints, visualize = False, leave_out = None, verbose = 0):
+def optimizer(scenarios, probabilities, mu_0, manual_constraints, visualize = False, verbose = 0):
   
     """Optimizes the weights put on each item the portfolio. This is done by minimizing the volatility of the portfolio at a given return procentage. Also visualized the markoviz model if requested.
     --------------------
@@ -197,7 +197,7 @@ def optimizer(scenarios, probabilities, mu_0, manual_constraints, visualize = Fa
             print(f"The optimization was terminated due to: \n{res.message}")
 
     if visualize:
-        vizualization(covar, mu, leave_out, optimal = res.x, manual_constraints = manual_constraints, frontier=True, scenarios = scenarios, probabilities = probabilities)
+        vizualization(covar, mu, optimal = res.x, manual_constraints = manual_constraints, frontier=True, scenarios = scenarios, probabilities = probabilities)
     return res
 
 
@@ -224,8 +224,7 @@ def mean_and_var(scenarios, probabilities):
 
 def vizualization(covar,
                   mu,
-                  generated_points = 50000,
-                  leave_out = None, 
+                  generated_points = 50000, 
                   frontier = True,
                   optimal = None,
                   scenarios = None,
@@ -239,8 +238,6 @@ def vizualization(covar,
             The covariance of the portfolio items
         mu: (N x 1) vector
             The mean of each portfolio item
-        total: Float | Default = 1.0
-            Total usable funds for the optimization
         generated_points: Int, Default:50000,
             The amount of points generated in the cloud.
         frontier: Boolean, Default: 'True'
@@ -260,12 +257,21 @@ def vizualization(covar,
         assert(probabilities is not None), "You have to give in weights in order to find the optimal using the method"
         assert(mu_0 is not None), "You have to give in the return lower bound mu_0 to find the optimal using the method"
         optimal = optimizer(scenarios, probabilities, manual_constraints = manual_constraints, mu_0 = mu_0, disp = False, vizualization = False)
-    if leave_out is not None:
-        covar = np.delete(covar,leave_out, axis = 1)
-        covar = np.delete(covar,leave_out, axis = 0)
-        mu = np.delete(mu,leave_out)
-        scenarios.drop(columns=scenarios.columns[leave_out], inplace=True)
     m,n = covar.shape
+
+
+    if frontier:
+        assert(scenarios is not None), "You have to give in scenarios in order to plot the frontier"
+        assert(probabilities is not None), "You have to give in weights in order to to plot the frontier"
+        assert(manual_constraints is not None), "You have to give menual constraints in order to plot the frontier"
+        frontier_mu = np.array([])
+        frontier_var = np.array([])
+        max_mu = np.max(mu)
+        for j in np.linspace(0, max_mu, 100):
+            opt = optimizer(scenarios, probabilities, manual_constraints = manual_constraints, mu_0 = j, verbose = 0)
+            frontier_mu = np.append(frontier_mu, mu @ opt.x)
+            frontier_var = np.append(frontier_var, opt.x.T @ covar @ opt.x)
+        
     port_returns = np.array([])
     port_vol = np.array([])
     for _ in range(0, generated_points): #Could probably be vectorized
@@ -274,25 +280,13 @@ def vizualization(covar,
         port_returns = np.append(port_returns, mu @ y)
         port_vol = np.append(port_vol, y.T @ covar @ y)
 
-    if frontier:
-        assert(scenarios is not None), "You have to give in scenarios in order to plot the frontier"
-        assert(probabilities is not None), "You have to give in weights in order to to plot the frontier"
-        assert(manual_constraints is not None), "You have to give menual constraints in order to plot the frontier"
-        frontier_mu = np.array([])
-        frontier_var = np.array([])
-        for j in np.linspace(0, np.max(mu), 100):
-            opt = optimizer(scenarios, probabilities, manual_constraints = manual_constraints, mu_0 = j, verbose = 0)
-            frontier_mu = np.append(frontier_mu, mu @ opt.x)
-            frontier_var = np.append( frontier_var, opt.x.T @ covar @ opt.x)
-
-
     generated_df = pd.DataFrame(list(zip(port_vol,
                                     port_returns)),
                         columns = ["Volatility",
                                    "Returns"])
     if frontier:
         frontier_df = pd.DataFrame(list(zip(frontier_var,
-                                        frontier_mu)),
+                                            frontier_mu)),
                             columns = ["Volatility",
                                     "Returns"])
     #df = pd.DataFrame(list(zip(frontier_var,frontier_mu)),
@@ -315,7 +309,7 @@ def vizualization(covar,
         + scale_x_continuous(labels=lambda l: ["%.3f%%" % (v * 100) for v in l])
         + geom_point(data = generated_df,
                      mapping = aes(x = "Volatility",
-                        y = "Returns"),
+                                   y = "Returns"),
                      color = "#7D8CC4"
                     )
         + geom_point(mapping = aes(x = optimal.T @ covar @ optimal , y=mu @ optimal),
