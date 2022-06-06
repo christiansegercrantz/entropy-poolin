@@ -38,7 +38,7 @@ def load_debug(data = pd.read_excel("Data/data.xlsx"), views_subsheet_name = 0, 
 
     df = pd.read_excel(views_sheet_name, sheet_name=views_subsheet_name)
     df = set_col_names(df) # adds columns with new names
-    data = data/100 # data is in precentages
+    #data = data/100 # data is in precentages
     # Initialize output matrices and vectors
     A = np.ones((1,len(data))) # ones because sum(x_i) = 1
     b = np.ones((1,1))         #  one because sum(x_i) = 1
@@ -76,7 +76,7 @@ def load_debug(data = pd.read_excel("Data/data.xlsx"), views_subsheet_name = 0, 
         if 'corr' in rf:
             (A,b,C,d) = append_corr(A, b, C, d, data, posterior_mean, posterior_var, df, ind, rf)
 
-    data = data*100 # dunno, if this does anything
+    #data = data*100 # dunno, if this does anything
     return (A,b,C,d)
 
 def set_col_names(data):
@@ -163,7 +163,7 @@ def append_var(A, b, C, d, data, posterior_mean, df, ind, rf):
             multiplier = 1.0
         else:
             multiplier = df.iloc[ind]['multiplier']
-        row = row - cov_vector(data, posterior_mean, df.iloc[ind]['asset3'], df.iloc[ind]['asset3']) * (multiplier**2 - multiplier * prior_vol_1**2 / (prior_vol_1 * prior_vol_3) )
+        row = row + cov_vector(data, posterior_mean, df.iloc[ind]['asset3'], df.iloc[ind]['asset3']) * (multiplier**2 - multiplier * prior_vol_1**2 / (prior_vol_1 * prior_vol_3) )
         #row = row - cov_vector(data, posterior_mean, df.iloc[ind]['asset3'], df.iloc[ind]['asset3'])
     if ('leq' in rf) or ('geq' in rf):
         C_new = np.vstack([C, sign*row])
