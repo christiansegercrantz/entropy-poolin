@@ -45,9 +45,7 @@ def full_confidence_posterior(p, A, b, C, d, verbose = False):
     # Nested function for computing the dual function values (only one input x to be scipy optimizer -compatible)
     def dual(var):
         l, v = var[:dim_d], var[dim_d:] # separate equality and inequality dual variables
-        # x = p * np.exp(-1 - np.dot(np.transpose(C), l) - np.dot(np.transpose(A), v)) # primal solution (with l, v fixed)
         x = p * np.exp(-1 - C.T @ l - A.T @ v) # primal solution (with l, v fixed)
-        # L = np.dot(x, np.log(x) - np.log(p)) + np.dot(l, np.dot(C, x) - d) + np.dot(v, np.dot(A, x) - b) # Dual value
         L = x @ (np.log(x) - np.log(p)) + l @ (C @ x - d) + v @ (A @ x - b) # Dual value
         return -1 * L # we maximize dual but scipt.opt only mnimizes, thus minus sign
 
@@ -56,19 +54,13 @@ def full_confidence_posterior(p, A, b, C, d, verbose = False):
         l, v = var[:dim_d], var[dim_d:] # separate equality and inequality dual variables
 
         # Interim results: (ln x - ln p), dx/dl and dx/dv
-        # x = p * np.exp(-1 - np.dot(np.transpose(C), l) - np.dot(np.transpose(A), v))
         x = p * np.exp(-1 - C.T @ l - A.T @ v)
-        # lnx_lnp = - np.ones(dim_x) - np.dot(np.transpose(C), l) - np.dot(np.transpose(A), v)
         lnx_lnp = - np.ones(dim_x) - C.T @ l - A.T @ v
-        # dxdl = -p * np.exp(-1) * np.exp(-1 * np.dot(np.transpose(A), v)) * np.exp(-1 * np.dot(np.transpose(C), l)) * C # TODO: transpose(C)?
         dxdl = -p * np.exp(-1) * np.exp(-1 * A.T @ v) * np.exp(-1 * C.T @ l) * C
-        # dxdv = -p * np.exp(-1) * np.exp(-1 * np.dot(np.transpose(C), l)) * np.exp(-1 * np.dot(np.transpose(A), v)) * A # TODO: transpose(A)?
         dxdv = -p * np.exp(-1) * np.exp(-1 * A.T @ v) * np.exp(-1 * C.T @ l) * A
-        # Jacl = -1 * np.dot(C, x) + np.dot(dxdl, lnx_lnp) + np.dot(C, x) - d + np.dot(dxdl, np.dot(l, C) + np.dot(v, A))
-        #Jacl = -1 * (C @ x) + dxdl @ lnx_lnp + C @ x - d + dxdl @ (l @ C + v @ A)
+
+        # Jacl = df(l, v)/dl; Jacv = df(l, v)/dv
         Jacl = dxdl @ lnx_lnp - d + dxdl @ (l @ C + v @ A)
-        # Jacv = -1 * np.dot(A, x) + np.dot(dxdv, lnx_lnp) + np.dot(A, x) - b + np.dot(dxdv, np.dot(v, A) + np.dot(l, C))
-        # Jacv = -1 * (A @ x) + dxdv @ lnx_lnp + A @ x - b + dxdv @ (v @ A + l @ C)
         Jacv = dxdv @ lnx_lnp - b + dxdv @ (v @ A + l @ C)
 
         Jac = np.concatenate((Jacl, Jacv))
@@ -82,7 +74,6 @@ def full_confidence_posterior(p, A, b, C, d, verbose = False):
         print("Jacobian matrix at optimum", Jac(res.x))
     l_opt, v_opt = res.x[:dim_d], res.x[dim_d:]
 
-    # posterior = p * np.exp(-1 - np.dot(np.transpose(C), l_opt) - np.dot(np.transpose(A), v_opt))
     posterior = p * np.exp(-1 - C.T @ l_opt - A.T @ v_opt)
     return posterior
 
