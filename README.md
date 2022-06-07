@@ -1,17 +1,12 @@
 # entropy-pooling
 
-This library contains the Python function library for running entropy pooling of market scenarios for portfolio optimization goals.
+This library contains the Python function library for running entropy pooling of market scenarios for portfolio optimization goals. Further documentation is found in the PDF report. The report contains information on the input data and discussion regarding the method. We have separate instructions for filling the views data, see *views_data_instructions.md*.
 
-Rough structure sketch of the code library
+*main.ipynb* is the file that is used to run the entropy pooling procedure (this will call the functions). There are also some example scripts for visualization.
 
-1) main file that is used to run the entropy pooling procedure (this will call the functions)
+The *entropy_pooling* package contains
+1) *views.py* for uploading the views data from xlsx-file into linear optimization constraints
 
-2) function(s) for uploading and preprocessing the data from xlsx file into views
+2) *entropy_minimizer.py* for performing the entropy minimization which yields the posterior distribution for the scenario probabilities
 
-3) function(s) for performing the entropy minizination to find posterior scenario probabilities
-
-4) function(s) for performing the Markowitz portfolio optimization task to find optimal allocations
-
-5) function(s) for visualization and computing some summary statistics
-
-Extra: Jupyter notebook etc to create a basis for some daily (or weekly/monthly) run report
+3) *markowitz_optimizer.py* for performing the Markowitz portfolio optimization task to find optimal allocations

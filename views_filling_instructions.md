@@ -1,22 +1,22 @@
-In this code library, views can be given for mean, volatility and correlation. Views can be absolute or relative, and they can be equalities or inequalities. All numbers are given in annual units. Each view is filled as its own row, and the number of rows is only limited by Excel.
+In this code library, views can be given for mean, volatility and correlation. Views can be absolute or relative, and they can be equalities or inequalities. All numbers are to be given in the same units as the scenarios data is in. Correlation is a dimensionless quantity. Each view is filled as its own row, and the number of rows is only limited by Excel.
 
-*Minor mathematical note: The **strict** inequality signs in the Excel act as ≤ and ≥ in the program.*
+*Minor mathematical note: The **strict** inequality signs in the Excel act as ≤ and ≥ in the program. Do not use <= or >= in the Excel sheet.*
 
 ## Mean values
 **Example:** We want to set the mean of *Eurozone Core Inflation* to 1 % (annual). This is filled as follows,
 
 | * View on | * Risk factor 1         | Risk factor 2       (applicable for corr) | * Operator | * Constant       (alpha) | Multiplier       (beta) | Risk factor 3 | Risk factor 4       (applicable for corr) |
 |-----------|-------------------------|-------------------------------------------|------------|--------------------------|-------------------------|---------------|-------------------------------------------|
-| Mean      | Eurozone Core Inflation |                                           |          = |            0.01           |                         |               |                                           |
+| Mean      | Eurozone Core Inflation |                                           |          = |            1           |                         |               |                                           |
 
 
-Note, that Excel will show 0.01 as 1 %, if percentage units are used. By leaving blank cells (or dash **-**), the program knows that we're dealing with an absolute view.
+By leaving blank cells (or dash **-**), the program knows that we're dealing with an absolute view.
 
 **Example:** *Eurozone Core Inflation* is at least 1 % (annual) greater than *US Core Inflation*. This is filled as follows,
 
 | * View on | * Risk factor 1         | Risk factor 2       (applicable for corr) | * Operator | * Constant       (alpha) | Multiplier       (beta) | Risk factor 3 | Risk factor 4       (applicable for corr) |
 |-----------|-------------------------|-------------------------------------------|------------|--------------------------|-------------------------|---------------|-------------------------------------------|
-| Mean      | Eurozone Core Inflation |                                           |          > |            0.01           |       1                 | US Core Inflation  |                                           |
+| Mean      | Eurozone Core Inflation |                                           |          > |            1           |       1                 | US Core Inflation  |                                           |
 
 If a given multiplier is a dash (**-**), or the cell is left blank, the multiplier is interpreted as 1. The multiplier acts on the *Risk factor 3* (and *Risk factor 4* in the case of a correlation view). In mathematical terms,
 
